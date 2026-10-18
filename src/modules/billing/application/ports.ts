@@ -229,4 +229,9 @@ export interface InvoiceRepository {
   // ('issued', 'partially_paid') -- point-in-time, no date filter. `dont
   // échu` = the subset with `due_at < now()`.
   sumOutstanding(ctx: TenantSessionContext): Promise<OutstandingSummary>;
+
+  // Same rows sumOutstanding aggregates, ungrouped -- used by
+  // getReceivablesByCustomer to break the total down per customer without
+  // re-deriving what "outstanding" means.
+  listOutstanding(ctx: TenantSessionContext): Promise<InvoiceRecord[]>;
 }

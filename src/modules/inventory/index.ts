@@ -31,6 +31,8 @@ export const inventoryService = {
     useCases.getStockLevels(ctx, filter, stockRepository),
   listMovements: (ctx: TenantSessionContext, filter: ListMovementsFilter) =>
     useCases.listMovements(ctx, filter, stockRepository),
+  exportMovementsCsv: (ctx: TenantSessionContext, filter: ListMovementsFilter) =>
+    useCases.exportMovementsCsv(ctx, filter, stockRepository),
   // multi-store: `storeScope` is REQUIRED -- `null` = every store the actor
   // can see (resolved by the caller via `resolveStoreScope`, never guessed
   // here).

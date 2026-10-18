@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { sales, saleLines } from "@/db/schema/sales";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import type {
@@ -9,6 +9,7 @@ import type {
   InsertSaleLineInput,
   ConfirmSaleHeaderPatch,
   PaymentProgressDelta,
+  ListSalesFilter,
 } from "../application/ports";
 
 // Drizzle implementation of the SalesRepository port. This is the ONLY file
@@ -37,6 +38,7 @@ function headerToDomain(row: SaleRow): SaleHeaderRecord {
     idempotencyKey: row.idempotencyKey,
     requestFingerprint: row.requestFingerprint,
     createdBy: row.createdBy,
+    confirmedAt: row.confirmedAt,
   };
 }
 
@@ -146,6 +148,80 @@ export const salesRepository: SalesRepository = {
         )
       );
     return rows.map(headerToDomain);
+  },
+
+  async list(ctx: TenantSessionContext, filter: ListSalesFilter): Promise<SaleHeaderRecord[]> {
+    const conditions = [eq(sales.structureId, ctx.actor.structureId)];
+    if (filter.createdBy) {
+      conditions.push(eq(sales.createdBy, filter.createdBy));
+    }
+    // multi-store: `storeScope` (the actor's own pinned store, already
+    // resolved by resolveStoreScope) ANDs with the optional `warehouseId`
+    // narrowing -- both end up as the SAME column, so a gerant's own scope
+    // and an unscoped actor's selector never need separate handling here.
+    if (filter.storeScope) {
+      conditions.push(eq(sales.warehouseId, filter.storeScope));
+    } else if (filter.warehouseId) {
+      conditions.push(eq(sales.warehouseId, filter.warehouseId));
+    }
+    if (filter.customerId) {
+      conditions.push(eq(sales.customerId, filter.customerId));
+    }
+    if (filter.status) {
+      conditions.push(eq(sales.status, filter.status));
+    }
+    if (filter.paymentStatus) {
+      conditions.push(eq(sales.paymentStatus, filter.paymentStatus));
+    }
+    if (filter.ticketNumber !== undefined) {
+      conditions.push(eq(sales.ticketNumber, filter.ticketNumber));
+    }
+    if (filter.periodFrom) {
+      conditions.push(gte(sales.confirmedAt, filter.periodFrom));
+    }
+    if (filter.periodTo) {
+      conditions.push(lte(sales.confirmedAt, filter.periodTo));
+    }
+
+    const rows = await ctx.db
+      .select()
+      .from(sales)
+      .where(and(...conditions))
+      .orderBy(desc(sales.confirmedAt))
+      .limit(filter.limit ?? 500);
+    return rows.map(headerToDomain);
+  },
+
+  async listCustomerIdsForStore(ctx: TenantSessionContext, warehouseId: string): Promise<string[]> {
+    const rows = await ctx.db
+      .selectDistinct({ customerId: sales.customerId })
+      .from(sales)
+      .where(
+        and(
+          eq(sales.structureId, ctx.actor.structureId),
+          eq(sales.warehouseId, warehouseId),
+          isNotNull(sales.customerId)
+        )
+      );
+    return rows.map((r) => r.customerId as string);
+  },
+
+  async findWarehouseIdsForSaleIds(
+    ctx: TenantSessionContext,
+    saleIds: string[]
+  ): Promise<Record<string, string>> {
+    if (saleIds.length === 0) {
+      return {};
+    }
+    const rows = await ctx.db
+      .select({ id: sales.id, warehouseId: sales.warehouseId })
+      .from(sales)
+      .where(and(eq(sales.structureId, ctx.actor.structureId), inArray(sales.id, saleIds)));
+    const result: Record<string, string> = {};
+    for (const row of rows) {
+      result[row.id] = row.warehouseId;
+    }
+    return result;
   },
 
   async listLines(ctx: TenantSessionContext, saleId: string): Promise<SaleLineRecord[]> {

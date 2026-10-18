@@ -35,6 +35,12 @@ export interface ReceivablesSummaryDto {
   overdueMinor: MoneyMinorDto;
 }
 
+export interface CustomerReceivableDto {
+  customerId: string;
+  outstandingMinor: MoneyMinorDto;
+  overdueMinor: MoneyMinorDto;
+}
+
 export interface RecordPaymentInput {
   idempotencyKey: string;
   amountMinor: MoneyMinorDto;

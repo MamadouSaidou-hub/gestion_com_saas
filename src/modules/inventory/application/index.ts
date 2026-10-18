@@ -2,6 +2,7 @@ export { receiveStock, type ReceiveStockInput } from "./receive-stock";
 export { adjustStock, type AdjustStockInput } from "./adjust-stock";
 export { getStockLevels } from "./get-stock-levels";
 export { listMovements } from "./list-movements";
+export { exportMovementsCsv } from "./export-movements-csv";
 export { listLowStock, type LowStockAlert } from "./list-low-stock";
 export { applyStockOut, type ApplyStockOutInput, type ApplyStockOutResult } from "./apply-stock-out";
 export { reverseStockOut, type ReverseStockOutInput } from "./reverse-stock-out";

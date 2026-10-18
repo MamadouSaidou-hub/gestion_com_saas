@@ -1,7 +1,7 @@
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { salesRepository } from "./infrastructure/sales-repository";
 import * as useCases from "./application";
-import type { ConfirmSaleInput, RecordPaymentProgressInput } from "./application";
+import type { ConfirmSaleInput, RecordPaymentProgressInput, ListSalesInput } from "./application";
 
 // ---------------------------------------------------------------------------
 // sales/index.ts -- the ONLY surface another module (or this module's own
@@ -29,6 +29,22 @@ export const salesService = {
     useCases.listSaleIdsCreatedBy(ctx, userId, salesRepository),
   recordPaymentProgress: (ctx: TenantSessionContext, input: RecordPaymentProgressInput) =>
     useCases.recordPaymentProgress(ctx, input, salesRepository),
+  listSales: (ctx: TenantSessionContext, input: ListSalesInput) =>
+    useCases.listSales(ctx, input, salesRepository),
+  exportSalesCsv: (ctx: TenantSessionContext, input: ListSalesInput) =>
+    useCases.exportSalesCsv(ctx, input, salesRepository),
+  getSaleDetail: (ctx: TenantSessionContext, saleId: string) =>
+    useCases.getSaleDetail(ctx, saleId, salesRepository),
+  // Ctx-based primitive for the clients screen's store scoping (catalog
+  // cannot depend on sales -- that would create a cycle, since sales
+  // already depends on catalog -- so this composition happens at the
+  // page/Server Action level, which calls both salesService and
+  // catalogService with the SAME ctx; see docs/platform.md's module
+  // boundary rules).
+  listCustomerIdsForStore: (ctx: TenantSessionContext, warehouseId: string) =>
+    salesRepository.listCustomerIdsForStore(ctx, warehouseId),
+  findWarehouseIdsForSaleIds: (ctx: TenantSessionContext, saleIds: string[]) =>
+    salesRepository.findWarehouseIdsForSaleIds(ctx, saleIds),
 };
 
 export type {
@@ -41,6 +57,9 @@ export type {
   SaleForBilling,
   RecordPaymentProgressInput,
   PaymentProgressResult,
+  SaleSummaryDto,
+  SaleDetailDto,
+  ListSalesInput,
 } from "./application";
 export {
   InvalidSaleInputError,

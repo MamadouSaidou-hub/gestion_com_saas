@@ -15,8 +15,10 @@ import {
   DuplicateWarehouseCodeError,
   WarehouseNotFoundError,
   InvalidWarehouseInputError,
+  CustomerNotFoundError,
+  InvalidCustomerInputError,
 } from "../index";
-import type { CategoryDto, AssignProductsToCategoryResult, WarehouseDto } from "../index";
+import type { CategoryDto, AssignProductsToCategoryResult, WarehouseDto, CustomerDto } from "../index";
 
 // ---------------------------------------------------------------------------
 // Thin Server Actions for the catalog module -- NOT wired to any screen yet
@@ -409,5 +411,88 @@ export async function archiveWarehouseAction(
       return { ok: false, code: "INVALID_INPUT", message: err.message };
     }
     return { ok: false, code: "UNKNOWN", message: "Impossible d'archiver ce magasin." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Customers ("Clients") -- same thin-action discipline. Input arrives as a
+// plain object (client form state), not FormData, since the clients screen
+// is a fuller form with typed fields (credit limit in minor units, payment
+// terms as a number) rather than a simple multipart submit.
+// ---------------------------------------------------------------------------
+
+const customerFormSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  phone: z.string().trim().max(20).nullable().optional(),
+  email: z.string().trim().max(200).nullable().optional(),
+  creditLimitMinor: z.string().nullable().optional(),
+  defaultPaymentTermsDays: z.number().int().nullable().optional(),
+  address: z.string().trim().max(500).nullable().optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type CustomerActionErrorCode =
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "INVALID_INPUT"
+  | "UNKNOWN";
+
+export type CustomerActionResult =
+  | { ok: true; customer: CustomerDto }
+  | { ok: false; code: CustomerActionErrorCode; message: string };
+
+export async function createCustomerAction(
+  structureId: string,
+  input: unknown
+): Promise<CustomerActionResult> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, code: "UNAUTHENTICATED", message: "Session expirée." };
+    }
+    const actor = await resolveActor(session, structureId);
+    const parsed = customerFormSchema.parse(input);
+    const customer = await withTenantSession(actor, (ctx) => catalogService.createCustomer(ctx, parsed));
+    return { ok: true, customer };
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ok: false, code: "FORBIDDEN", message: "Action non autorisée pour votre rôle." };
+    }
+    if (err instanceof InvalidCustomerInputError) {
+      return { ok: false, code: "INVALID_INPUT", message: err.message };
+    }
+    return { ok: false, code: "UNKNOWN", message: "Impossible de créer ce client." };
+  }
+}
+
+export async function updateCustomerAction(
+  structureId: string,
+  customerId: string,
+  input: unknown
+): Promise<CustomerActionResult> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, code: "UNAUTHENTICATED", message: "Session expirée." };
+    }
+    const actor = await resolveActor(session, structureId);
+    const parsed = customerFormSchema.partial().parse(input);
+    const customer = await withTenantSession(actor, (ctx) =>
+      catalogService.updateCustomer(ctx, customerId, parsed)
+    );
+    return { ok: true, customer };
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ok: false, code: "FORBIDDEN", message: "Action non autorisée pour votre rôle." };
+    }
+    if (err instanceof CustomerNotFoundError) {
+      return { ok: false, code: "NOT_FOUND", message: "Ce client n'existe plus." };
+    }
+    if (err instanceof InvalidCustomerInputError) {
+      return { ok: false, code: "INVALID_INPUT", message: err.message };
+    }
+    return { ok: false, code: "UNKNOWN", message: "Impossible de modifier ce client." };
   }
 }

@@ -21,6 +21,7 @@ export interface SaleHeaderRecord {
   idempotencyKey: string;
   requestFingerprint: string;
   createdBy: string;
+  confirmedAt: Date | null;
 }
 
 export interface SaleLineRecord {
@@ -78,6 +79,33 @@ export interface PaymentProgressDelta {
   deltaMinor: bigint;
 }
 
+// ---------------------------------------------------------------------------
+// listSales (sales history screen) -- a filtered, scoped read. Honours BOTH
+// scoping axes independently: `createdBy` ('own' scope for a cashier
+// without `sale:read_all`) AND `storeScope` (a gerant's single store) --
+// both are plain AND-ed SQL predicates, never post-filtered in application
+// memory, so the CSV export (which re-runs this exact query) stays correct
+// and fast at any row count.
+// ---------------------------------------------------------------------------
+export interface ListSalesFilter {
+  // 'own' scope -- set by the use case from scopeFor(actor, 'sale:read'),
+  // never client-supplied.
+  createdBy?: string;
+  // multi-store -- REQUIRED by the use case to resolve (null = every store
+  // the actor may see).
+  storeScope: string | null;
+  warehouseId?: string; // optional additional narrowing (store picker on an unscoped actor)
+  customerId?: string;
+  status?: SaleStatus;
+  paymentStatus?: SalePaymentStatus;
+  ticketNumber?: bigint;
+  // Inclusive date range over `confirmed_at` (the accounting day, UTC --
+  // see analytics/domain/period.ts's convention, reused here for consistency).
+  periodFrom?: Date;
+  periodTo?: Date;
+  limit?: number;
+}
+
 export interface SalesRepository {
   // `ON CONFLICT (structure_id, idempotency_key) DO NOTHING RETURNING id` --
   // returns null on conflict (replay), NEVER pre-SELECTs to check existence
@@ -112,6 +140,28 @@ export interface SalesRepository {
   // All CONFIRMED sales not yet fully paid ('unpaid' or 'partial') --
   // point-in-time, no date filter. Used by billing's getReceivables.
   listOpen(ctx: TenantSessionContext): Promise<SaleHeaderRecord[]>;
+
+  // Sales history screen + its CSV export -- see ListSalesFilter's header
+  // comment. Only ever returns CONFIRMED or CANCELLED sales (a draft row is
+  // either mid-transaction on another connection or an abandoned replay
+  // target -- never something a user should see in a history list); callers
+  // that want every status may still pass `status` explicitly.
+  list(ctx: TenantSessionContext, filter: ListSalesFilter): Promise<SaleHeaderRecord[]>;
+
+  // Every DISTINCT customerId that has at least one sale in the given
+  // store -- used to scope the clients screen for a gerant ("customers who
+  // have activity in their store", per the approved product decision).
+  // `null` customerId (anonymous sales) is never included.
+  listCustomerIdsForStore(ctx: TenantSessionContext, warehouseId: string): Promise<string[]>;
+
+  // Every DISTINCT warehouseId a given set of sale ids was confirmed
+  // against -- used by billing's getReceivablesByCustomer to store-scope
+  // invoices (which have no warehouse_id column of their own) via their
+  // linked sale.
+  findWarehouseIdsForSaleIds(
+    ctx: TenantSessionContext,
+    saleIds: string[]
+  ): Promise<Record<string, string>>;
 
   listLines(ctx: TenantSessionContext, saleId: string): Promise<SaleLineRecord[]>;
 

@@ -1,6 +1,45 @@
 import { moneyToDto } from "@/platform/dto/money";
-import type { ConfirmSaleLineResult, ConfirmSaleResult } from "./dto";
+import type { ConfirmSaleLineResult, ConfirmSaleResult, SaleSummaryDto, SaleDetailDto } from "./dto";
 import type { SaleHeaderRecord, SaleLineRecord } from "./ports";
+
+export function toSaleSummaryDto(header: SaleHeaderRecord): SaleSummaryDto {
+  return {
+    id: header.id,
+    warehouseId: header.warehouseId,
+    customerId: header.customerId,
+    status: header.status,
+    paymentStatus: header.paymentStatus,
+    currencyCode: header.currencyCode,
+    totalMinor: moneyToDto(header.totalMinor),
+    paidMinor: moneyToDto(header.paidMinor),
+    ticketNumber: header.ticketNumber?.toString() ?? null,
+    fiscalYear: header.fiscalYear,
+    createdBy: header.createdBy,
+    confirmedAt: header.confirmedAt ? header.confirmedAt.toISOString() : null,
+  };
+}
+
+export function toSaleDetailDto(header: SaleHeaderRecord, lines: SaleLineRecord[]): SaleDetailDto {
+  const summary = toSaleSummaryDto(header);
+  return {
+    ...summary,
+    subtotalMinor: moneyToDto(header.subtotalMinor),
+    vatMinor: moneyToDto(header.vatMinor),
+    discountMinor: moneyToDto(header.discountMinor),
+    lines: lines
+      .sort((a, b) => a.lineNo - b.lineNo)
+      .map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+        unitPriceMinor: moneyToDto(line.unitPriceMinor),
+        discountMinor: moneyToDto(line.discountMinor),
+        vatRate: line.vatRate,
+        unitCostMinor: moneyToDto(line.unitCostMinor),
+        lineTotalMinor: moneyToDto(line.lineTotalMinor),
+        lineNo: line.lineNo,
+      })),
+  };
+}
 
 export function toConfirmSaleResult(
   header: SaleHeaderRecord,

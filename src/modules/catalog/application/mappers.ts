@@ -1,8 +1,8 @@
 import { moneyToDto } from "@/platform/dto/money";
 import type { Product } from "../domain/product";
 import type { Category } from "../domain/category";
-import type { ProductDto, CategoryDto, WarehouseDto } from "./dto";
-import type { WarehouseRecord } from "./ports";
+import type { ProductDto, CategoryDto, WarehouseDto, CustomerDto } from "./dto";
+import type { WarehouseRecord, CustomerRecord } from "./ports";
 
 export function toProductDto(product: Product): ProductDto {
   return {
@@ -32,6 +32,21 @@ export function toWarehouseDto(warehouse: WarehouseRecord): WarehouseDto {
     address: warehouse.address,
     phone: warehouse.phone,
     createdAt: warehouse.createdAt.toISOString(),
+  };
+}
+
+export function toCustomerDto(customer: CustomerRecord): CustomerDto {
+  return {
+    id: customer.id,
+    name: customer.name,
+    phone: customer.phone,
+    email: customer.email,
+    isActive: customer.isActive,
+    creditLimitMinor: customer.creditLimitMinor !== null ? moneyToDto(customer.creditLimitMinor) : null,
+    defaultPaymentTermsDays: customer.defaultPaymentTermsDays,
+    address: customer.address,
+    notes: customer.notes,
+    createdAt: customer.createdAt.toISOString(),
   };
 }
 

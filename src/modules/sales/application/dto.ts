@@ -49,6 +49,41 @@ export interface ConfirmSaleLineResult {
   lineNo: number;
 }
 
+// ---------------------------------------------------------------------------
+// Sales history (listSales) + document (ticket/invoice) screens.
+// ---------------------------------------------------------------------------
+
+export interface SaleSummaryDto {
+  id: string;
+  warehouseId: string;
+  customerId: string | null;
+  status: "draft" | "confirmed" | "cancelled";
+  paymentStatus: "unpaid" | "partial" | "paid";
+  currencyCode: string;
+  totalMinor: MoneyMinorDto;
+  paidMinor: MoneyMinorDto;
+  ticketNumber: string | null;
+  fiscalYear: number | null;
+  createdBy: string;
+  confirmedAt: string | null; // ISO 8601
+}
+
+export interface ListSalesInput {
+  warehouseId?: string;
+  customerId?: string;
+  paymentStatus?: "unpaid" | "partial" | "paid";
+  ticketNumber?: string; // bigint DTO -- see platform/dto/money's string convention
+  periodFrom?: string; // ISO date
+  periodTo?: string; // ISO date
+}
+
+export interface SaleDetailDto extends SaleSummaryDto {
+  subtotalMinor: MoneyMinorDto;
+  vatMinor: MoneyMinorDto;
+  discountMinor: MoneyMinorDto;
+  lines: ConfirmSaleLineResult[];
+}
+
 export interface ConfirmSaleResult {
   saleId: string;
   ticketNumber: string; // bigint -> string (DTO boundary)

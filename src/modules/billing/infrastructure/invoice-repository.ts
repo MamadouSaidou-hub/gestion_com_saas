@@ -141,6 +141,22 @@ export const invoiceRepository: InvoiceRepository = {
     return rows.map((r) => r.saleId as string);
   },
 
+  // Same predicate as sumOutstanding below (status in OPEN_STATUSES) --
+  // granular rows instead of the aggregate, so getReceivablesByCustomer can
+  // group by customerId without recomputing what "outstanding" means.
+  async listOutstanding(ctx: TenantSessionContext): Promise<InvoiceRecord[]> {
+    const rows = await ctx.db
+      .select()
+      .from(invoices)
+      .where(
+        and(
+          eq(invoices.structureId, ctx.actor.structureId),
+          inArray(invoices.status, [...OPEN_STATUSES])
+        )
+      );
+    return rows.map(toDomain);
+  },
+
   async sumOutstanding(ctx: TenantSessionContext): Promise<OutstandingSummary> {
     const rows = await ctx.db
       .select({

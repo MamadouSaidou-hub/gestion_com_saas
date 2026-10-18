@@ -2,6 +2,7 @@ export { createTransfer } from "./create-transfer";
 export { receiveTransfer } from "./receive-transfer";
 export { cancelTransfer } from "./cancel-transfer";
 export { listTransfers, getInTransitByProduct } from "./list-transfers";
+export { exportTransfersCsv } from "./export-transfers-csv";
 export { openStockCount } from "./open-stock-count";
 export { validateStockCount } from "./validate-stock-count";
 export { listStockCounts, listVarianceLines } from "./list-stock-counts";

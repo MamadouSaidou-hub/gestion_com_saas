@@ -7,25 +7,32 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatMoney, type SupportedCurrency } from "@/lib/money";
 import { dict } from "@/lib/i18n";
-import { MockDataBanner } from "@/components/mock-data-banner";
 import { Breadcrumb } from "@/components/nav/breadcrumb";
-import { MOCK_INVOICES, type InvoiceStatus } from "./mock-invoices";
+import type { InvoiceDto } from "@/modules/billing";
 
-const STATUS_FILTERS: Array<{ value: InvoiceStatus | "all"; label: string }> = [
+export type InvoiceRow = InvoiceDto & { customerName: string };
+
+// UI-level status bucket, derived from the REAL invoice status
+// (draft/issued/paid/partially_paid/cancelled) -- never a separate mock
+// enum. "pending" covers issued + partially_paid (not yet fully settled,
+// not overdue); "overdue" additionally requires a due date in the past.
+type UiStatus = "paid" | "pending" | "overdue" | "cancelled";
+
+function toUiStatus(invoice: InvoiceRow): UiStatus {
+  if (invoice.status === "cancelled") return "cancelled";
+  if (invoice.status === "paid") return "paid";
+  if (invoice.dueAt && new Date(invoice.dueAt) < new Date()) return "overdue";
+  return "pending";
+}
+
+const STATUS_FILTERS: Array<{ value: UiStatus | "all"; label: string }> = [
   { value: "all", label: dict.invoices.filterAll },
   { value: "pending", label: dict.invoices.statusPending },
   { value: "overdue", label: dict.invoices.statusOverdue },
   { value: "paid", label: dict.invoices.statusPaid },
 ];
 
-// Status badge mapping -- deliberately does NOT reach for `destructive`
-// (red) for "overdue", even though that would read as intuitively urgent:
-// the approved design direction reserves red for destructive/void actions
-// only and amber for stock alerts only. Distinguished instead via icon +
-// variant + weight. Flagged in the handback: a future iteration may want a
-// dedicated "danger" status token separate from both, but that's a design-
-// system change for the user to approve, not to make silently here.
-function statusBadge(status: InvoiceStatus) {
+function statusBadge(status: UiStatus) {
   switch (status) {
     case "paid":
       return { variant: "success" as const, icon: CheckCircle2, label: dict.invoices.statusPaid };
@@ -33,10 +40,13 @@ function statusBadge(status: InvoiceStatus) {
       return { variant: "secondary" as const, icon: Clock, label: dict.invoices.statusPending };
     case "overdue":
       return { variant: "outline" as const, icon: AlertCircle, label: dict.invoices.statusOverdue };
+    case "cancelled":
+      return { variant: "outline" as const, icon: AlertCircle, label: "Annulée" };
   }
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string | null): string {
+  if (!iso) return "--";
   return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -44,22 +54,25 @@ export function InvoiceListClient({
   structureId,
   structureName,
   currency,
+  invoices,
 }: {
   structureId: string;
   structureName: string;
   currency: SupportedCurrency;
+  invoices: InvoiceRow[];
 }) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<UiStatus | "all">("all");
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return MOCK_INVOICES.filter((invoice) => {
-      if (statusFilter !== "all" && invoice.status !== statusFilter) return false;
+    return invoices.filter((invoice) => {
+      const status = toUiStatus(invoice);
+      if (statusFilter !== "all" && status !== statusFilter) return false;
       if (!q) return true;
-      return invoice.clientName.toLowerCase().includes(q) || invoice.number.toLowerCase().includes(q);
+      return invoice.customerName.toLowerCase().includes(q) || invoice.docNumber.toLowerCase().includes(q);
     });
-  }, [query, statusFilter]);
+  }, [query, statusFilter, invoices]);
 
   return (
     <div className="min-h-screen bg-background pb-6">
@@ -95,8 +108,6 @@ export function InvoiceListClient({
           </div>
         </div>
 
-        {/* Status filter -- horizontally scrollable pill row, no wrapping, fits
-            small screens without pushing content down further. */}
         <div role="group" aria-label="Filtrer par statut" className="mt-3 flex gap-2 overflow-x-auto">
           {STATUS_FILTERS.map((f) => (
             <button
@@ -125,7 +136,6 @@ export function InvoiceListClient({
             { label: dict.invoices.title },
           ]}
         />
-        <MockDataBanner />
         <p className="mb-2 text-sm text-muted-foreground">
           {results.length} {dict.invoices.title.toLowerCase()}
         </p>
@@ -135,27 +145,32 @@ export function InvoiceListClient({
         ) : (
           <ul className="divide-y divide-border rounded-lg border border-border bg-card">
             {results.map((invoice) => {
-              const badge = statusBadge(invoice.status);
+              const badge = statusBadge(toUiStatus(invoice));
               const Icon = badge.icon;
               return (
-                <li key={invoice.id} className="flex items-center gap-3 p-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{invoice.clientName}</p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {invoice.number}
-                      <span className="mx-1" aria-hidden="true">
-                        &middot;
-                      </span>
-                      {dict.invoices.dueDate} {formatDate(invoice.dueOn)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    <p className="tabular-nums font-semibold">{formatMoney(invoice.amount, currency)}</p>
-                    <Badge variant={badge.variant} className="gap-1">
-                      <Icon className="h-3 w-3" aria-hidden="true" />
-                      {badge.label}
-                    </Badge>
-                  </div>
+                <li key={invoice.id}>
+                  <a
+                    href={invoice.saleId ? `/s/${structureId}/ventes/${invoice.saleId}` : "#"}
+                    className="flex items-center gap-3 p-4 hover:bg-accent"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{invoice.customerName}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {invoice.docNumber}
+                        <span className="mx-1" aria-hidden="true">
+                          &middot;
+                        </span>
+                        {dict.invoices.issuedOn} {formatDate(invoice.issuedAt)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <p className="tabular-nums font-semibold">{formatMoney(Number(invoice.totalMinor), currency)}</p>
+                      <Badge variant={badge.variant} className="gap-1">
+                        <Icon className="h-3 w-3" aria-hidden="true" />
+                        {badge.label}
+                      </Badge>
+                    </div>
+                  </a>
                 </li>
               );
             })}

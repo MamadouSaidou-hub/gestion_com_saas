@@ -13,6 +13,9 @@ import type {
   AssignProductsToCategoryRequest,
   ListWarehousesFilter,
   CreateWarehouseRequest,
+  ListCustomersFilter,
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
 } from "./application";
 
 // ---------------------------------------------------------------------------
@@ -28,6 +31,8 @@ import type {
 export const catalogService = {
   listProducts: (ctx: TenantSessionContext, filter: ListProductsFilter) =>
     useCases.listProducts(ctx, filter, productRepository),
+  exportProductsCsv: (ctx: TenantSessionContext, filter: ListProductsFilter) =>
+    useCases.exportProductsCsv(ctx, filter, productRepository),
   searchProducts: (ctx: TenantSessionContext, query: string) =>
     useCases.searchProducts(ctx, query, productRepository),
   getProduct: (ctx: TenantSessionContext, productId: string) =>
@@ -40,6 +45,16 @@ export const catalogService = {
     useCases.archiveProduct(ctx, productId, productRepository),
   findOrCreateCustomerByName: (ctx: TenantSessionContext, name: string) =>
     useCases.findOrCreateCustomerByName(ctx, name, customerRepository),
+  listCustomers: (ctx: TenantSessionContext, filter: ListCustomersFilter = {}) =>
+    useCases.listCustomers(ctx, filter, customerRepository),
+  exportCustomersCsv: (ctx: TenantSessionContext, filter: ListCustomersFilter = {}) =>
+    useCases.exportCustomersCsv(ctx, filter, customerRepository),
+  getCustomer: (ctx: TenantSessionContext, customerId: string) =>
+    useCases.getCustomer(ctx, customerId, customerRepository),
+  createCustomer: (ctx: TenantSessionContext, input: CreateCustomerRequest) =>
+    useCases.createCustomer(ctx, input, customerRepository),
+  updateCustomer: (ctx: TenantSessionContext, customerId: string, input: UpdateCustomerRequest) =>
+    useCases.updateCustomer(ctx, customerId, input, customerRepository),
   // --- categories ("rayons") ---
   createCategory: (ctx: TenantSessionContext, input: CreateCategoryRequest) =>
     useCases.createCategory(ctx, input, categoryRepository),
@@ -63,6 +78,7 @@ export type {
   ProductDto,
   CategoryDto,
   WarehouseDto,
+  CustomerDto,
   ListProductsFilter,
   CreateProductRequest,
   UpdateProductRequest,
@@ -72,6 +88,9 @@ export type {
   AssignProductsToCategoryResult,
   ListWarehousesFilter,
   CreateWarehouseRequest,
+  ListCustomersFilter,
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
 } from "./application";
 export {
   DuplicateSkuError,
@@ -85,4 +104,6 @@ export {
   DuplicateWarehouseCodeError,
   WarehouseNotFoundError,
   InvalidWarehouseInputError,
+  CustomerNotFoundError,
+  InvalidCustomerInputError,
 } from "./domain/errors";

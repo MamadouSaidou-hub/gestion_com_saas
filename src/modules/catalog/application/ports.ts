@@ -142,13 +142,51 @@ export interface WarehouseRepository {
 export interface CustomerRecord {
   id: string;
   name: string;
+  phone: string | null;
+  email: string | null;
+  isActive: boolean;
+  creditLimitMinor: bigint | null;
+  defaultPaymentTermsDays: number | null;
+  address: string | null;
+  notes: string | null;
+  createdAt: Date;
 }
 
 export interface InsertCustomerInput {
   name: string;
+  phone?: string | null;
+  email?: string | null;
+  creditLimitMinor?: bigint | null;
+  defaultPaymentTermsDays?: number | null;
+  address?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdateCustomerInput {
+  name?: string;
+  phone?: string | null;
+  email?: string | null;
+  isActive?: boolean;
+  creditLimitMinor?: bigint | null;
+  defaultPaymentTermsDays?: number | null;
+  address?: string | null;
+  notes?: string | null;
+}
+
+export interface ListCustomersFilter {
+  activeOnly?: boolean;
+  search?: string;
+  // Clients screen store-scoping: restricts to this exact set of ids
+  // (resolved by the CALLER via salesService.listCustomerIdsForStore for a
+  // gerant -- catalog cannot depend on sales itself, see sales/index.ts's
+  // comment on this). `undefined` = no restriction (every customer).
+  ids?: string[];
 }
 
 export interface CustomerRepository {
   findByName(ctx: TenantSessionContext, name: string): Promise<CustomerRecord | null>;
+  findById(ctx: TenantSessionContext, customerId: string): Promise<CustomerRecord | null>;
+  list(ctx: TenantSessionContext, filter: ListCustomersFilter): Promise<CustomerRecord[]>;
   insert(ctx: TenantSessionContext, input: InsertCustomerInput): Promise<CustomerRecord>;
+  update(ctx: TenantSessionContext, customerId: string, input: UpdateCustomerInput): Promise<CustomerRecord>;
 }

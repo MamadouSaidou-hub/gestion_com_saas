@@ -32,6 +32,8 @@ export const stockTransfersService = {
     useCases.cancelTransfer(ctx, input, transfersRepository),
   listTransfers: (ctx: TenantSessionContext, filter: ListTransfersFilter) =>
     useCases.listTransfers(ctx, filter, transfersRepository),
+  exportTransfersCsv: (ctx: TenantSessionContext, filter: ListTransfersFilter) =>
+    useCases.exportTransfersCsv(ctx, filter, transfersRepository),
   getInTransitByProduct: (ctx: TenantSessionContext, storeScope: string | null) =>
     useCases.getInTransitByProduct(ctx, storeScope, transfersRepository),
 

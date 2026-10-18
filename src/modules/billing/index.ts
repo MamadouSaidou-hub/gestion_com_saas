@@ -46,6 +46,10 @@ export const billingService = {
   listPayments: (ctx: TenantSessionContext, requestedWarehouseId?: string | null) =>
     useCases.listPayments(ctx, paymentRepository, requestedWarehouseId),
   getReceivables: (ctx: TenantSessionContext) => useCases.getReceivables(ctx, invoiceRepository),
+  getReceivablesByCustomer: (ctx: TenantSessionContext, storeScope: string | null) =>
+    useCases.getReceivablesByCustomer(ctx, storeScope, invoiceRepository),
+  getInvoiceForSale: (ctx: TenantSessionContext, saleId: string) =>
+    useCases.getInvoiceForSale(ctx, saleId, invoiceRepository),
 };
 
 export type {
@@ -56,6 +60,7 @@ export type {
   InvoiceDto,
   PaymentDto,
   ReceivablesSummaryDto,
+  CustomerReceivableDto,
   RecordPaymentInput,
 } from "./application";
 export {

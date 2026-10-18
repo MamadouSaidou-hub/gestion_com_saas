@@ -48,3 +48,20 @@ export interface CategoryDto {
   name: string;
   createdAt: string; // ISO 8601
 }
+
+// Transport-safe customer ("Client") shape -- migration 0016's clients
+// screen columns. `phone` is E.164, clear text, tenant-scoped (D7) -- never
+// put this DTO's `phone`/`address` into an audit payload (the PII guard
+// throws on those key names by design).
+export interface CustomerDto {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  isActive: boolean;
+  creditLimitMinor: MoneyMinorDto | null;
+  defaultPaymentTermsDays: number | null;
+  address: string | null;
+  notes: string | null;
+  createdAt: string; // ISO 8601
+}

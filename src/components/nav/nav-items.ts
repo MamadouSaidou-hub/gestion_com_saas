@@ -31,11 +31,13 @@ import { dict } from "@/lib/i18n";
 export type NavKey =
   | "dashboard"
   | "sales"
+  | "salesHistory"
   | "stockMovements"
   | "transfers"
   | "products"
   | "suppliers"
   | "invoices"
+  | "clients"
   | "team"
   | "warehouses";
 
@@ -73,6 +75,13 @@ export const PILOTAGE_NAV: NavItemDef[] = [
     permissions: ["sale:create"],
   },
   {
+    key: "salesHistory",
+    href: (id) => `/s/${id}/ventes`,
+    label: dict.salesHistory.title,
+    icon: ClipboardList,
+    permissions: ["sale:read"],
+  },
+  {
     key: "stockMovements",
     href: (id) => `/s/${id}/stocks`,
     label: dict.nav.stockMovements,
@@ -106,7 +115,13 @@ export const GESTION_NAV: NavItemDef[] = [
     href: (id) => `/s/${id}/factures`,
     label: dict.nav.invoices,
     icon: FileText,
-    comingSoon: true,
+  },
+  {
+    key: "clients",
+    href: (id) => `/s/${id}/clients`,
+    label: dict.clients.title,
+    icon: UserCog,
+    permissions: ["customer:read"],
   },
   {
     key: "team",

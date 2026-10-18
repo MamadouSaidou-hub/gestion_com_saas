@@ -78,6 +78,22 @@ export class InvalidWarehouseInputError extends Error {
   }
 }
 
+// --- customers (clients screen, migration 0016) ---
+
+export class CustomerNotFoundError extends Error {
+  constructor(customerId: string) {
+    super(`Customer "${customerId}" was not found.`);
+    this.name = "CustomerNotFoundError";
+  }
+}
+
+export class InvalidCustomerInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCustomerInputError";
+  }
+}
+
 // Blocks deletion rather than silently nulling out references -- see
 // delete-category.ts for the rationale.
 export class CategoryHasDependentsError extends Error {

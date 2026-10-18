@@ -9,6 +9,8 @@ export { listInvoices } from "./list-invoices";
 export { getInvoice } from "./get-invoice";
 export { listPayments } from "./list-payments";
 export { getReceivables } from "./get-receivables";
+export { getReceivablesByCustomer } from "./get-receivables-by-customer";
+export { getInvoiceForSale } from "./get-invoice-for-sale";
 export type {
   TaxSettingsRepository,
   DocumentCounterRepository,
@@ -23,5 +25,6 @@ export type {
   InvoiceDto,
   PaymentDto,
   ReceivablesSummaryDto,
+  CustomerReceivableDto,
   RecordPaymentInput,
 } from "./dto";

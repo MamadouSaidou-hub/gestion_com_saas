@@ -6,17 +6,16 @@ import { withTenantSession } from "@/platform/db/withTenantSession";
 import { structures } from "@/db/schema/tenancy";
 import { NotAMemberError, UnauthenticatedError } from "@/platform/errors";
 import type { SupportedCurrency } from "@/lib/money";
+import { billingService } from "@/modules/billing";
+import { catalogService } from "@/modules/catalog";
 import { InvoiceListClient } from "./invoice-list-client";
 
-// Gated, structure-scoped page: /s/[structureId]/factures. Same
-// resolveActor() pattern as the other screens. As with suppliers/products,
-// there is no dedicated "invoice:read" permission yet (only `invoice:issue`,
-// which is a WRITE permission) -- any active member may view the invoice
-// list; issuing a real invoice is left to the real billing module, not
-// exposed here as an ungated action.
-//
-// DESIGN MOCKUP NOTICE: the invoice list is sample data, not a real
-// `invoices` query -- that module doesn't exist yet (D4).
+// Gated, structure-scoped page: /s/[structureId]/factures -- REAL
+// invoices (billingService.listInvoices), reconciled with the "tickets by
+// default, invoice on demand" model: this screen only ever shows
+// documents that were actually ISSUED on demand (issueInvoiceForSale), not
+// every confirmed sale -- most sales never show up here at all, by
+// design. The mock data this screen used to run on has been removed.
 export const dynamic = "force-dynamic";
 
 function currencyForCountry(countryCode: string): SupportedCurrency {
@@ -48,24 +47,45 @@ export default async function FacturesPage({
     throw err;
   }
 
-  const structure = await withTenantSession(actor, async ({ db }) => {
-    const [row] = await db
+  const data = await withTenantSession(actor, async (ctx) => {
+    const [row] = await ctx.db
       .select({ name: structures.name, countryCode: structures.countryCode })
       .from(structures)
       .where(eq(structures.id, actor.structureId))
       .limit(1);
-    return row;
+    if (!row) {
+      return null;
+    }
+
+    const invoices = await billingService.listInvoices(ctx, {});
+    const customerIds = Array.from(
+      new Set(invoices.map((inv) => inv.customerId).filter((id): id is string => id !== null))
+    );
+    const customers = customerIds.length
+      ? await catalogService.listCustomers(ctx, { ids: customerIds })
+      : [];
+    const customerNameById = new Map(customers.map((c) => [c.id, c.name]));
+
+    return {
+      structureName: row.name,
+      countryCode: row.countryCode,
+      invoices: invoices.map((inv) => ({
+        ...inv,
+        customerName: inv.customerId ? customerNameById.get(inv.customerId) ?? "Client" : "Client comptant",
+      })),
+    };
   });
 
-  if (!structure) {
+  if (!data) {
     notFound();
   }
 
   return (
     <InvoiceListClient
       structureId={structureId}
-      structureName={structure.name}
-      currency={currencyForCountry(structure.countryCode)}
+      structureName={data.structureName}
+      currency={currencyForCountry(data.countryCode)}
+      invoices={data.invoices}
     />
   );
 }
