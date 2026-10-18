@@ -1,0 +1,18 @@
+# ============================================================================
+# Trivy waiver file (devops.md §2 / CLAUDE.md non-negotiable).
+#
+# A HIGH/CRITICAL vulnerability with an available fix BLOCKS the build
+# (.github/workflows/ci.yml, trivy-scan job). The ONLY way to suppress a
+# specific finding is a dated, signed entry below -- never a silent
+# severity-threshold change in the workflow file.
+#
+# Entry format (one CVE per waiver, reviewed every release):
+#
+#   # CVE-XXXX-XXXXX -- <package>@<version>
+#   # Reason: <why this is not exploitable in this app's context>
+#   # Waived by: <name/handle>, <YYYY-MM-DD>
+#   # Review by: <YYYY-MM-DD, max +90 days out>
+#   CVE-XXXX-XXXXX
+#
+# No waivers exist yet -- this file is intentionally empty of entries.
+# ============================================================================

@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+ * Design tokens -- "well-run boutique till", not a consumer app.
+ *
+ * Palette rationale (for the designer's report, not just a comment nobody
+ * reads): deep emerald as primary reads as "money handled carefully" without
+ * borrowing Orange Money's orange or MTN MoMo's yellow -- this app sits next
+ * to those wallets on the same phone and must look like its own, neutral,
+ * trustworthy tool, not a clone of either operator. Amber is reserved ONLY
+ * for stock/attention signals, red ONLY for destructive/void actions, so a
+ * cashier scanning the screen fast always reads color the same way.
+ *
+ * HSL triplets (shadcn/ui convention: `H S% L%`, consumed as
+ * `hsl(var(--token) / <alpha-value>)` so Tailwind's opacity modifiers work).
+ * ------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --radius: 0.75rem; /* slightly warmer/rounder than the shadcn default 0.5rem */
+
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 160 84% 24%; /* deep emerald */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 25% 94%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 16% 42%;
+
+    --accent: 210 25% 94%;
+    --accent-foreground: 222 47% 11%;
+
+    --success: 152 69% 28%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 42%; /* stock alerts ONLY */
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 42%; /* void/cancel ONLY */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 86%;
+    --ring: 160 84% 24%;
+  }
+
+  .dark {
+    --background: 222 47% 7%;
+    --foreground: 210 20% 96%;
+
+    --card: 222 42% 10%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 222 42% 10%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 152 69% 45%;
+    --primary-foreground: 222 47% 8%;
+
+    --secondary: 222 35% 16%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 222 35% 15%;
+    --muted-foreground: 215 16% 68%;
+
+    --accent: 222 35% 16%;
+    --accent-foreground: 210 20% 96%;
+
+    --success: 152 60% 42%;
+    --success-foreground: 222 47% 8%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 26 83% 10%;
+
+    --destructive: 0 63% 52%;
+    --destructive-foreground: 210 20% 96%;
+
+    --border: 222 30% 20%;
+    --input: 222 30% 22%;
+    --ring: 152 69% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Money is read at a glance, often mid-transaction -- digits must not shift
+ * width as they change. Apply via the `tabular-nums` Tailwind utility
+ * (class="tabular-nums") wherever an amount renders, not globally, so normal
+ * prose keeps proportional figures. */
+
+/* Respect prefers-reduced-motion (performance.md): disable non-essential
+   animation/transition for users who asked for it, instead of relying on
+   every component to remember to check this individually. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible focus ring baseline (accessibility, performance.md). Uses the
+   `--ring` token so it adapts with the theme instead of a hardcoded color. */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}

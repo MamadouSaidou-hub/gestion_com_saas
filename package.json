@@ -1,0 +1,53 @@
+{
+  "name": "gestion-commercial-saas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant commercial management SaaS (Next.js App Router + Drizzle + Better Auth + Supabase/Postgres). DB layer (schema, migrations, RLS, audit trail) under src/db/; app skeleton + platform/identity/tenancy modules under src/app/, src/platform/, src/modules/.",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:generate:custom": "drizzle-kit generate --custom",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:check": "drizzle-kit check",
+    "identity:db:migrate": "tsx src/modules/identity/migrate.ts",
+    "migrate:all": "npm run db:migrate && npm run identity:db:migrate"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.6.1",
+    "better-auth": "^1.2.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.36.4",
+    "lucide-react": "^1.58.0",
+    "next": "^14.2.35",
+    "postcss": "^8.5.30",
+    "postgres": "^3.4.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^3.4.19",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "dotenv": "^16.4.5",
+    "drizzle-kit": "^0.28.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

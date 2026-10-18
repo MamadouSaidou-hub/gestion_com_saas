@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792166204128,
+      "tag": "0000_initial_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792166205582,
+      "tag": "0001_tenancy_rls_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792339200000,
+      "tag": "0002_my_memberships",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792339200001,
+      "tag": "0003_tighten_rls_audit_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792339200002,
+      "tag": "0004_owner_lockdown_bypassrls_assert",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792339200003,
+      "tag": "0005_structures_crosstenant_grant_regrant_fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792339200004,
+      "tag": "0006_memberships_invitations_owner_insert_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792339200005,
+      "tag": "0007_invitations_update_select_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792339200006,
+      "tag": "0008_invitations_delete_guard_status_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792339200007,
+      "tag": "0009_business_layer_sales_billing",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792339200008,
+      "tag": "0010_sales_payment_linkage",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792339200009,
+      "tag": "0011_invoice_sale_idempotent_issue",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792339200010,
+      "tag": "0012_sale_request_fingerprint",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792339200011,
+      "tag": "0013_owner_only_settings_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792339200012,
+      "tag": "0014_multi_store_transfers_counts",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,312 @@
+# ============================================================================
+# CI gate for Gestion commerciale SaaS.
+#
+# This repo had NO CI before this workflow. Per CLAUDE.md / the
+# secure-fullstack-standards skill (devops.md): a HIGH/CRITICAL unpatched
+# vuln blocks production, every deploy needs a tested rollback path, and
+# migrations are reversible -- none of that was ever machine-checked here.
+# Three prior security-review rounds (see db/README.md's "Judgment calls /
+# deviations" log) found bugs by hand that this pipeline is designed to
+# catch automatically: a lost-update on payment amounts, an unrecorded-sale
+# replay hole, and a vacuous RLS test. This workflow is the backstop for the
+# NEXT such bug, not a guarantee none exists today.
+#
+# Jobs (all required to merge -- see branch protection note at the bottom):
+#   1. static-checks      tsc --noEmit + ESLint (hexagonal boundary rules,
+#                          zero warnings allowed)
+#   2. unit-tests          56 DB-free vitest tests
+#   3. integration-tests   43 vitest tests against a REAL throwaway Postgres
+#   4. migration-cycle      forward -> down (strict reverse order) -> forward
+#                          again, on its own disposable Postgres -- the
+#                          check that would have caught prior ordering /
+#                          idempotency bugs by machine instead of by hand
+#   5. trivy-scan           dependency vulnerability gate (HIGH/CRITICAL
+#                          blocks) + CycloneDX SBOM artifact
+#
+# Deliberately NOT built here (flag to the user):
+#   - No deploy step. Render/Vercel deploy hooks are a separate concern this
+#     task was not scoped to touch; wire them only once this gate is green
+#     on a real run (see report).
+#   - No `services: postgres` block for the integration-tests job -- see
+#     that job's own header comment for why.
+#   - No Docker image scan -- there is no Dockerfile in this repo today
+#     (Vercel builds the frontend natively; the API is Next.js Route
+#     Handlers in the same app, not a separate deployed image). Add an
+#     `image` scan-type Trivy step the day a Dockerfile/Render image
+#     appears -- don't let this comment go stale.
+# ============================================================================
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same PR/branch so the queue doesn't pile up.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  # --------------------------------------------------------------------
+  # 1. Static checks: type safety + the architectural ESLint rules
+  #    (no-restricted-imports on @/db/index, hexagonal module-boundary
+  #    rules). These rules exist specifically to keep tenant isolation
+  #    and module boundaries from rotting silently -- a warning here is
+  #    exactly the kind of thing that was previously only caught by a
+  #    human security reviewer. Zero warnings tolerated.
+  # --------------------------------------------------------------------
+  static-checks:
+    name: Typecheck + ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: TypeScript (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: ESLint (fail on any warning, not just errors)
+        run: npx next lint --max-warnings=0
+
+  # --------------------------------------------------------------------
+  # 2. Unit tests: 56 pure-logic tests, no DB. Always fast, always runs.
+  # --------------------------------------------------------------------
+  unit-tests:
+    name: Unit tests (vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+  # --------------------------------------------------------------------
+  # 3. Integration tests: 43 tests against a real Postgres.
+  #
+  # DECISION: reuse the project's own `global-setup.ts` (docker run a
+  # disposable postgres:16-alpine on port 55433, apply both migration
+  # pipelines, set app_user's password out-of-band), instead of adding a
+  # GitHub Actions `services: postgres` container.
+  #
+  # Why: `services:` containers are started by the Actions runner BEFORE
+  # job steps run and are addressed over the Docker network/localhost --
+  # they're the right tool when a job's OWN steps just need to *connect*
+  # to Postgres. This job's steps don't connect directly: they invoke
+  # `npm run test:integration`, which spawns and tears down its own
+  # container via `docker run`/`docker rm -f` with hardcoded
+  # name/port/credentials shared between global-setup.ts and the test
+  # files (src/test/integration/db-constants.ts). Standing up a SECOND,
+  # parallel Postgres via `services:` would be redundant at best (two
+  # Postgres instances for one suite) and a maintenance trap at worst
+  # (CI's connection details would silently diverge from what every
+  # contributor runs locally with `npm run test:integration`, since that
+  # command is unchanged whether run on a laptop or in CI). ubuntu-latest
+  # runners ship Docker Engine on the host and allow job steps to run
+  # `docker` directly (no dind setup needed), which is exactly what
+  # global-setup.ts already does on a Windows dev machine via an explicit
+  # absolute-path Docker binary lookup -- on ubuntu-latest, plain `docker`
+  # resolves on PATH with no such workaround required.
+  #
+  # Net effect: CI runs the IDENTICAL command a contributor runs locally.
+  # One source of truth for "how does the integration suite get its DB."
+  # --------------------------------------------------------------------
+  integration-tests:
+    name: Integration tests (vitest, real Postgres via Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Integration tests (spins up its own disposable Postgres)
+        run: npm run test:integration
+
+  # --------------------------------------------------------------------
+  # 4. Migration cycle: forward -> down (strict reverse order) -> forward.
+  #
+  # This is the check an architect + three security-review rounds said
+  # should have existed: it machine-verifies that EVERY down/*.sql script
+  # actually reverses its forward migration cleanly, in the documented
+  # strict-reverse-number order, and that re-applying forward afterwards
+  # still succeeds (idempotency / no orphaned objects left by a down
+  # script). db/README.md's own ordering list was written by hand and
+  # already fell behind (it stops at 0011; 0012/0013 exist on disk) --
+  # this job reads the directory instead of trusting a hand-maintained
+  # list, which is the point.
+  #
+  # Uses a GitHub Actions `services: postgres` container here (unlike
+  # integration-tests above) because this job's steps genuinely just
+  # need to CONNECT to a throwaway Postgres as a superuser and run SQL
+  # against it directly (psql, and the project's own migrate.ts/
+  # identity migrate.ts runners) -- there is no existing
+  # container-spawning script to reuse for this flow, so `services:` is
+  # the right, minimal tool.
+  #
+  # BYPASSRLS requirement (db/README.md "Judgment call to flag to
+  # security-reviewer" / migration 0004's assertion): the official
+  # `postgres` image's default superuser role is BYPASSRLS by
+  # construction, which satisfies 0004's `RAISE EXCEPTION` guard the
+  # same way a Supabase project-owner role does. No extra GRANT needed.
+  # --------------------------------------------------------------------
+  migration-cycle:
+    name: Migration cycle (forward -> down -> forward)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          # Ephemeral CI-only sandbox DB, destroyed with the job -- not a
+          # real credential, never reused outside this job run. Same
+          # pattern the repo's own src/test/integration/db-constants.ts
+          # already uses for its disposable container.
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_migrator_throwaway_pw
+          POSTGRES_DB: gcsaas_migration_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL_MIGRATOR: postgres://postgres:ci_migrator_throwaway_pw@localhost:5432/gcsaas_migration_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U postgres && break
+            sleep 1
+          done
+
+      - name: Forward migration (migrate:all, from scratch)
+        run: npm run migrate:all
+
+      - name: Down migrations, strict reverse order
+        run: |
+          set -euo pipefail
+          # Business migrations only -- the identity module
+          # (src/modules/identity/migrations/) has NO down/ scripts today;
+          # that asymmetry is pre-existing (see db/README.md's Layout
+          # section) and is NOT fixed by this CI job. Flagged in the PR
+          # report, not silently patched over here.
+          for f in $(ls -1 src/db/migrations/down/*.down.sql | sort -r); do
+            echo "::group::down $f"
+            psql "$DATABASE_URL_MIGRATOR" -v ON_ERROR_STOP=1 -f "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Forward migration again (idempotency / re-apply check)
+        run: npm run migrate:all
+
+  # --------------------------------------------------------------------
+  # 5. Trivy: dependency vulnerability gate + SBOM.
+  #
+  # scan-type fs (package-lock.json), not image -- no Dockerfile exists
+  # in this repo (see the top-of-file note). HIGH/CRITICAL with a known
+  # fix blocks the merge; a HIGH/CRITICAL with NO fix yet available is
+  # excluded via ignore-unfixed (there is nothing actionable to patch to)
+  # but must still be tracked and revisited -- that tracking is a process
+  # responsibility, not something this job can enforce.
+  #
+  # Per CLAUDE.md / devops.md: the ONLY way to suppress a real
+  # HIGH/CRITICAL-with-fix finding is a dated, signed entry in
+  # .trivyignore -- never a silent severity-threshold bump in this file.
+  # --------------------------------------------------------------------
+  trivy-scan:
+    name: Trivy vulnerability gate + SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan (gate on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,config
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+
+      - name: Generate SBOM (CycloneDX)
+        if: always()
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: cyclonedx
+          output: sbom.cdx.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: sbom.cdx.json
+          retention-days: 90
+
+# ============================================================================
+# Required GitHub repo configuration (nothing below is set by this file --
+# it must be configured by hand in repo Settings, by someone with admin
+# rights on the client's org):
+#
+# 1. Branch protection on `main`: require status checks
+#       "Typecheck + ESLint", "Unit tests (vitest)",
+#       "Integration tests (vitest, real Postgres via Docker)",
+#       "Migration cycle (forward -> down -> forward)",
+#       "Trivy vulnerability gate + SBOM"
+#    and forbid direct pushes to `main`.
+#
+# 2. No GitHub Actions secrets are required for THIS workflow -- every
+#    credential used above is an ephemeral, hardcoded, throwaway value for
+#    a container that is destroyed at the end of its job (same convention
+#    already used by src/test/integration/db-constants.ts). Nothing here
+#    touches prod/staging Supabase, Render or Vercel.
+#
+# 3. The day a deploy step is added to this pipeline, it will need (per
+#    db/README.md's two-role split and CLAUDE.md's "secrets in GitHub
+#    Encrypted Secrets, owned by the client"):
+#      - DATABASE_URL_MIGRATOR / DATABASE_URL for the REAL staging/prod
+#        Supabase project (never the throwaway values above)
+#      - RENDER_DEPLOY_HOOK, VERCEL_TOKEN (or VERCEL_ORG_ID/VERCEL_PROJECT_ID)
+#      - BETTER_AUTH_SECRET per environment
+#    all as GitHub Encrypted Secrets scoped to an environment
+#    (Settings -> Environments -> staging/production), owned by the client,
+#    never committed. Nothing in this file should ever be edited to inline
+#    a real value in place of these placeholders.
+# ============================================================================
