@@ -46,6 +46,8 @@ function movementToDomain(row: StockMovementRow): StockMovementRecord {
     currencyCode: row.currencyCode,
     reason: row.reason,
     saleId: row.saleId,
+    transferId: row.transferId,
+    stockCountId: row.stockCountId,
     occurredAt: row.occurredAt,
     createdBy: row.createdBy,
   };
@@ -197,8 +199,19 @@ export const stockRepository: StockRepository = {
         // adjust-stock.ts) -- recognized here to preserve that distinction
         // in the ledger; every other non-sale caller gets the generic
         // 'manual' value.
-        sourceType: input.saleId ? null : input.reason.startsWith("adjustment:") ? "adjustment" : "manual",
+        // Extended here (this phase): transferId/stockCountId join saleId
+        // as the other dedicated-FK arcs -- any one of the three being set
+        // means sourceType MUST stay null (exactly one of the five arcs,
+        // re-checked by the DB's own stock_movements_exclusive_arc_chk).
+        sourceType:
+          input.saleId || input.transferId || input.stockCountId
+            ? null
+            : input.reason.startsWith("adjustment:")
+              ? "adjustment"
+              : "manual",
         saleId: input.saleId ?? null,
+        transferId: input.transferId ?? null,
+        stockCountId: input.stockCountId ?? null,
         createdBy: ctx.actor.userId,
       })
       .returning();

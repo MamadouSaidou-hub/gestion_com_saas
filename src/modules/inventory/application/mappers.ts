@@ -24,6 +24,8 @@ export function toMovementDto(record: StockMovementRecord): StockMovementDto {
     currencyCode: record.currencyCode,
     reason: record.reason,
     saleId: record.saleId,
+    transferId: record.transferId,
+    stockCountId: record.stockCountId,
     occurredAt: record.occurredAt.toISOString(),
     createdBy: record.createdBy,
   };

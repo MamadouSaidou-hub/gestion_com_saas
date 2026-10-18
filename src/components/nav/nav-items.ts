@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowLeftRight,
   ClipboardList,
   FileText,
   LayoutDashboard,
@@ -31,6 +32,7 @@ export type NavKey =
   | "dashboard"
   | "sales"
   | "stockMovements"
+  | "transfers"
   | "products"
   | "suppliers"
   | "invoices"
@@ -75,7 +77,13 @@ export const PILOTAGE_NAV: NavItemDef[] = [
     href: (id) => `/s/${id}/stocks`,
     label: dict.nav.stockMovements,
     icon: ClipboardList,
-    comingSoon: true,
+  },
+  {
+    key: "transfers",
+    href: (id) => `/s/${id}/transferts`,
+    label: dict.nav.transfers,
+    icon: ArrowLeftRight,
+    permissions: ["transfer:read"],
   },
 ];
 

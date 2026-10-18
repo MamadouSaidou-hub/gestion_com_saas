@@ -41,10 +41,16 @@ export type Permission =
   | "stock:read"
   | "stock:adjust"
   | "stock:receive"
-  | "stock:transfer"
-  | "stock:count"
   | "stock:oversell" // reserved to manager/owner (approved product decision)
   | "stock:rebuild" // recompute stock_levels projection from the ledger -- owner only
+  // --- inter-store transfers (migration 0014 tables, this phase's use cases) ---
+  | "transfer:read"
+  | "transfer:create"
+  | "transfer:receive"
+  | "transfer:cancel"
+  // --- physical stock counts (migration 0014 tables, this phase's use cases) ---
+  | "count:open"
+  | "count:validate"
   // --- sales ---
   | "sale:create"
   | "sale:read"
@@ -96,10 +102,14 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   "stock:read",
   "stock:adjust",
   "stock:receive",
-  "stock:transfer",
-  "stock:count",
   "stock:oversell",
   "stock:rebuild",
+  "transfer:read",
+  "transfer:create",
+  "transfer:receive",
+  "transfer:cancel",
+  "count:open",
+  "count:validate",
   "sale:create",
   "sale:read",
   "sale:read_all",
@@ -155,9 +165,13 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "stock:read",
     "stock:adjust",
     "stock:receive",
-    "stock:transfer",
-    "stock:count",
     "stock:oversell",
+    "transfer:read",
+    "transfer:create",
+    "transfer:receive",
+    "transfer:cancel",
+    "count:open",
+    "count:validate",
     "sale:create",
     "sale:read",
     "sale:read_all",
@@ -200,6 +214,13 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
   // Stock keeper: the stock/catalog operational set, no sales/money
   // permissions at all (not even `payment:read`), no `stock:oversell`
   // (reserved to manager/owner) and no `stock:rebuild` (owner only).
+  // Judgment call: given `transfer:create`/`transfer:receive`/`count:open`/
+  // `count:validate` (day-to-day stock operations, this role's whole
+  // purpose) but NOT `transfer:cancel` -- reversing a transfer already
+  // in transit is closer to the sensitive/reversal class of action
+  // (D3-adjacent) and is reserved to manager/owner, same tier as
+  // `stock:oversell`/`stock:rebuild` above. Flag for security-reviewer if
+  // this split is judged too strict for a one-person-stockroom tenant.
   stock_keeper: new Set<Permission>([
     "product:read",
     "product:write",
@@ -211,8 +232,11 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "stock:read",
     "stock:adjust",
     "stock:receive",
-    "stock:transfer",
-    "stock:count",
+    "transfer:read",
+    "transfer:create",
+    "transfer:receive",
+    "count:open",
+    "count:validate",
   ]),
 
   // Accountant: the billing/receivables set + dashboard:read_financials +
@@ -249,6 +273,7 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "supplier:read",
     "customer:read",
     "stock:read",
+    "transfer:read",
     "sale:read_all",
     "invoice:read",
     "invoice:read_all",

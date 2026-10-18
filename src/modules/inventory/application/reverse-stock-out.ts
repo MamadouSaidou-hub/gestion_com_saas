@@ -13,8 +13,12 @@ export interface ReverseStockOutLine {
 export interface ReverseStockOutInput {
   warehouseId: string;
   lines: ReverseStockOutLine[];
-  reason: string; // e.g. 'sale_void'
+  reason: string; // e.g. 'sale_void', 'transfer_cancelled'
   saleId?: string | null;
+  // Mutually exclusive with saleId -- `cancelTransfer` (this phase) passes
+  // this instead, never both (stock_movements_exclusive_arc_chk enforces it
+  // at the DB level regardless of what the caller intends).
+  transferId?: string | null;
   currencyCode: string;
 }
 
@@ -64,6 +68,7 @@ export async function reverseStockOut(
       currencyCode: input.currencyCode,
       reason: input.reason,
       saleId: input.saleId ?? null,
+      transferId: input.transferId ?? null,
     });
 
     await repo.upsertLevel(ctx, {

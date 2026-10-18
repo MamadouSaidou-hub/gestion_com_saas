@@ -23,6 +23,8 @@ export const billingService = {
   getVatRate: (ctx: TenantSessionContext) => useCases.getVatRate(ctx, taxSettingsRepository),
   allocateTicketNumber: (ctx: TenantSessionContext, fiscalYear: number) =>
     useCases.allocateTicketNumber(ctx, fiscalYear, documentCounterRepository),
+  allocateTransferReference: (ctx: TenantSessionContext, fiscalYear: number) =>
+    useCases.allocateTransferReference(ctx, fiscalYear, documentCounterRepository),
   recordSalePayment: (ctx: TenantSessionContext, input: InsertSalePaymentInput) =>
     useCases.recordSalePayment(ctx, input, paymentRepository),
 

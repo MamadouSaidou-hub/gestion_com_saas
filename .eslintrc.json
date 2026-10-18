@@ -71,7 +71,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: catalog may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: catalog may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only catalog/infrastructure/ may import @/db/schema/*." },
               { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
             ]
@@ -86,7 +86,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: catalog may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: catalog may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only catalog/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
             ]
           }
@@ -100,7 +100,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: catalog may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: catalog may only reach another business module through its public index.ts surface -- even from infrastructure/." }
             ]
           }
         ]
@@ -114,7 +114,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: inventory may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: inventory may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only inventory/infrastructure/ may import @/db/schema/*." },
               { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
             ]
@@ -129,7 +129,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: inventory may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: inventory may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only inventory/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
             ]
           }
@@ -143,7 +143,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: inventory may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: inventory may only reach another business module through its public index.ts surface -- even from infrastructure/." }
             ]
           }
         ]
@@ -157,7 +157,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: sales may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: sales may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only sales/infrastructure/ may import @/db/schema/*." },
               { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
             ]
@@ -172,7 +172,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: sales may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: sales may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only sales/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
             ]
           }
@@ -186,7 +186,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: sales may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: sales may only reach another business module through its public index.ts surface -- even from infrastructure/." }
             ]
           }
         ]
@@ -200,7 +200,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: billing may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: billing may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only billing/infrastructure/ may import @/db/schema/*." },
               { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
             ]
@@ -215,7 +215,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: billing may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: billing may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only billing/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
             ]
           }
@@ -229,7 +229,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: billing may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: billing may only reach another business module through its public index.ts surface -- even from infrastructure/." }
             ]
           }
         ]
@@ -243,7 +243,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*"], "message": "Cross-module boundary: analytics may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*"], "message": "Cross-module boundary: analytics may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only analytics/infrastructure/ may import @/db/schema/*." },
               { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
             ]
@@ -258,7 +258,7 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*"], "message": "Cross-module boundary: analytics may only reach another business module through its public index.ts surface." },
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*"], "message": "Cross-module boundary: analytics may only reach another business module through its public index.ts surface." },
               { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only analytics/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
             ]
           }
@@ -272,7 +272,50 @@
           "error",
           {
             "patterns": [
-              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*"], "message": "Cross-module boundary: analytics may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*"], "message": "Cross-module boundary: analytics may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/modules/stock-transfers/domain/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: stock-transfers may only reach another business module through its public index.ts surface." },
+              { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only stock-transfers/infrastructure/ may import @/db/schema/*." },
+              { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/modules/stock-transfers/application/**/*.ts", "src/modules/stock-transfers/api/**/*.ts", "src/modules/stock-transfers/index.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: stock-transfers may only reach another business module through its public index.ts surface." },
+              { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only stock-transfers/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/modules/stock-transfers/infrastructure/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*"], "message": "Cross-module boundary: stock-transfers may only reach another business module through its public index.ts surface -- even from infrastructure/." }
             ]
           }
         ]

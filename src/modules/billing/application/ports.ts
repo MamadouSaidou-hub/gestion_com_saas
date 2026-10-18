@@ -18,7 +18,11 @@ export interface TaxSettingsRepository {
 export interface DocumentCounterRepository {
   allocateNext(
     ctx: TenantSessionContext,
-    docType: "ticket" | "invoice" | "quote" | "credit_note" | "delivery_note",
+    // "transfer" added this phase (migration 0014's ALTER TYPE -- see
+    // db/README entry 2x) -- stock_transfers.reference is allocated via the
+    // SAME gapless document_counters mechanism as tickets/invoices, its own
+    // independent (structure, docType='transfer', fiscalYear) sequence.
+    docType: "ticket" | "invoice" | "quote" | "credit_note" | "delivery_note" | "transfer",
     fiscalYear: number
   ): Promise<bigint>;
 }

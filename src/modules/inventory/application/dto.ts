@@ -26,6 +26,8 @@ export interface StockMovementDto {
   currencyCode: string;
   reason: string;
   saleId: string | null;
+  transferId: string | null;
+  stockCountId: string | null;
   occurredAt: string;
   createdBy: string;
 }

@@ -20,7 +20,7 @@ import type { DocumentCounterRepository } from "../application/ports";
 export const documentCounterRepository: DocumentCounterRepository = {
   async allocateNext(
     ctx: TenantSessionContext,
-    docType: "ticket" | "invoice" | "quote" | "credit_note" | "delivery_note",
+    docType: "ticket" | "invoice" | "quote" | "credit_note" | "delivery_note" | "transfer",
     fiscalYear: number
   ): Promise<bigint> {
     await ctx.db

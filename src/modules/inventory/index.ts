@@ -3,6 +3,7 @@ import { stockRepository } from "./infrastructure/stock-repository";
 import * as useCases from "./application";
 import type { ReceiveStockInput, AdjustStockInput, ApplyStockOutInput, ReverseStockOutInput } from "./application";
 import type { ListLevelsFilter, ListMovementsFilter } from "./application";
+import type { ApplyTransferOutInput, ApplyTransferInInput, ApplyStockCountAdjustmentInput } from "./application";
 
 // ---------------------------------------------------------------------------
 // inventory/index.ts -- the ONLY surface another module is allowed to
@@ -44,6 +45,15 @@ export const inventoryService = {
   // restricts the rebuild to one store's pairs only.
   rebuildStockLevels: (ctx: TenantSessionContext, warehouseId?: string | null) =>
     useCases.rebuildStockLevels(ctx, stockRepository, warehouseId ?? null),
+  // --- inter-store transfers / physical counts (this phase) -- ctx-based
+  // primitives the stock-transfers module calls with ITS OWN ctx, same
+  // cross-module convention as billing calling sales' primitives. ---
+  applyTransferOut: (ctx: TenantSessionContext, input: ApplyTransferOutInput) =>
+    useCases.applyTransferOut(ctx, input, stockRepository),
+  applyTransferIn: (ctx: TenantSessionContext, input: ApplyTransferInInput) =>
+    useCases.applyTransferIn(ctx, input, stockRepository),
+  applyStockCountAdjustment: (ctx: TenantSessionContext, input: ApplyStockCountAdjustmentInput) =>
+    useCases.applyStockCountAdjustment(ctx, input, stockRepository),
 };
 
 export { Quantity, InvalidQuantityError } from "./domain/quantity";
@@ -60,4 +70,12 @@ export type {
   ListMovementsFilter,
   LowStockAlert,
   RebuildStockLevelsResult,
+  ApplyTransferOutInput,
+  ApplyTransferOutResult,
+  TransferOutLine,
+  ApplyTransferInInput,
+  TransferInLine,
+  ApplyStockCountAdjustmentInput,
+  StockCountAdjustmentResult,
+  StockCountVarianceLine,
 } from "./application";

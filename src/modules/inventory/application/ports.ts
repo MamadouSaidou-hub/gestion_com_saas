@@ -27,6 +27,13 @@ export interface StockMovementRecord {
   currencyCode: string;
   reason: string;
   saleId: string | null;
+  // Multi-store transfers / physical counts (migration 0014's exclusive-arc
+  // columns, closed in full by that migration -- see db/README entry 2r).
+  // Mutually exclusive with saleId/sourceType at the DB level
+  // (num_nonnulls(...) = 1); the repository is responsible for only ever
+  // setting exactly one of these per insertMovement call.
+  transferId: string | null;
+  stockCountId: string | null;
   occurredAt: Date;
   createdBy: string;
 }
@@ -40,6 +47,10 @@ export interface InsertMovementInput {
   currencyCode: string;
   reason: string;
   saleId?: string | null;
+  // Transfers module/physical-counts module pass EXACTLY one of these (and
+  // never together with saleId) -- see stock_movements_exclusive_arc_chk.
+  transferId?: string | null;
+  stockCountId?: string | null;
 }
 
 export interface UpsertLevelInput {

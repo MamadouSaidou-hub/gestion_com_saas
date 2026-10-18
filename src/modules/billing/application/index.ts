@@ -1,5 +1,6 @@
 export { getVatRate } from "./get-vat-rate";
 export { allocateTicketNumber } from "./allocate-ticket-number";
+export { allocateTransferReference } from "./allocate-transfer-reference";
 export { recordSalePayment } from "./record-sale-payment";
 export { recordPayment, type RecordPaymentRepos } from "./record-payment";
 export { issueInvoiceForSale, type IssueInvoiceRepos } from "./issue-invoice-for-sale";
