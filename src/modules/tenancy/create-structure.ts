@@ -105,7 +105,7 @@ export async function createStructure(
     // all for its own founding privilege grant (owner membership created
     // atomically by create_structure_with_owner). Appended in the SAME
     // transaction as everything else here -- ids + amounts only, no PII.
-    const audit = createAuditWriter(tx, { userId, structureId, role: "owner" });
+    const audit = createAuditWriter(tx, { userId, structureId, role: "owner", warehouseId: null });
     await audit.append({
       action: "structure.created",
       targetType: "structure",

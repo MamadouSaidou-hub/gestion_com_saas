@@ -19,6 +19,10 @@ export interface LowStockAlertDto {
   productId: string;
   sku: string;
   name: string;
+  // multi-store: which store this alert is for -- surfaced explicitly now
+  // that a dashboard with no store filter aggregates across every store
+  // (one alert per product x store, never summed).
+  warehouseId: string;
   quantity: string;
   lowStockThreshold: string;
 }
@@ -79,4 +83,10 @@ export interface DashboardDto {
 export interface GetDashboardInput {
   period: PeriodGranularity;
   referenceDate?: Date;
+  // multi-store: OPTIONAL store selector value from the UI -- only ever
+  // rendered/sent from the SECOND store onward (per the "single-store shop
+  // must not get more complex" product rule) and from an UNSCOPED actor
+  // (a store-scoped gerant's own store always wins regardless, see
+  // `resolveStoreScope`).
+  warehouseId?: string | null;
 }

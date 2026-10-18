@@ -17,6 +17,13 @@ src/db/
     sales.ts        sales, sale_lines
     billing.ts       tax_settings, document_counters, invoices, payments,
                      payment_allocations
+    stock-transfers.ts  stock_transfers/stock_transfer_lines,
+                     stock_counts/stock_count_lines (added by migration 0014;
+                     missing from this list until now -- stale doc, not a
+                     schema gap, fixed while touching this file for 0015/0016)
+    purchasing.ts    supplier_deliveries/supplier_delivery_lines,
+                     supplier_payments/supplier_payment_allocations (0015)
+    rebates.ts       rebate_scales/rebate_tiers/rebate_grants (0016)
     audit.ts        audit_log (append-only, hash-chained per tenant)
     index.ts        barrel export, used as drizzle-kit's `schema` entry
   migrations/
@@ -85,6 +92,27 @@ src/db/
                                      polymorphic source reference is
                                      rewritten as a true exclusive-arc CHECK
                                      (closes debt 2r in full) -- see entry 2x.
+    0015_supplier_purchasing.sql    hand-written: supplier-side purchasing --
+                                     `supplier_deliveries` (store-scoped like
+                                     other stock-bearing rows, activates
+                                     `stock_movements.supplier_delivery_id`'s
+                                     composite FK, 0014 added the column
+                                     specifically for this), `supplier_
+                                     delivery_lines`, `supplier_payments`
+                                     (tenant-floor ONLY, no warehouse_id --
+                                     supplier debt is consolidated at tenant
+                                     level), `supplier_payment_allocations`.
+                                     Deliberately NOT reusing payments/
+                                     invoices (2r lesson). See entry 2y.
+    0016_rebates_and_trgm_search.sql  hand-written: generic, quantity-driven,
+                                     cliff-mode, informational-only rebates
+                                     (`rebate_scales`/`rebate_tiers`/
+                                     `rebate_grants` -- exactly-one-party CHECK,
+                                     not a party_type polymorph, applying 2r
+                                     preventively) + `customers` clients-screen
+                                     columns + `pg_trgm`-backed global search
+                                     (`extensions` schema, GIN indexes on
+                                     products/customers/suppliers). See entry 2z.
     down/                           MANUAL rollback scripts (see "Reversibility" below)
   index.ts          runtime DB client (app_user)
   migrate.ts         migration runner (migrator role)
@@ -135,6 +163,43 @@ migrations in the right order.
 file in the same folder/journal when you need more RLS/trigger/grant work
 that drizzle-kit can't express from the TS schema (follow the pattern in
 `0001_tenancy_rls_audit.sql`).
+
+### A new `.sql` file in this folder is NOT enough — `meta/_journal.json` is the real source
+
+**Found while building/validating 0015/0016, confirmed by actual execution
+against a disposable container.** `drizzle-orm`'s runtime migrator
+(`readMigrationFiles` in `node_modules/drizzle-orm/migrator.js`, used by both
+`src/db/migrate.ts` and any `db:migrate` invocation) does **not** scan
+`src/db/migrations/*.sql` on disk. It reads **only**
+`src/db/migrations/meta/_journal.json`, and for each `entries[]` row loads
+`<tag>.sql` by exact filename. Dropping a new hand-written migration file into
+the folder — even with the next sequential number, even referenced correctly
+everywhere else (this README's Layout list, `scripts/ci/verify-business-
+schema.sql`, the down/ script) — is **silently never applied**: `migrate()`
+reports "Migrations complete." / exit 0 having done nothing, because as far
+as it's concerned the journal still ends at the previous entry. Reproduced
+exactly this way while validating `0015_supplier_purchasing.sql`/
+`0016_rebates_and_trgm_search.sql`: both files existed on disk, both were
+syntactically valid (confirmed by applying them directly with `psql -f`), yet
+`npm run db:migrate` against a freshly wiped database stopped at 0014 with no
+error until `meta/_journal.json` gained matching `{ idx, tag, when,
+breakpoints: true }` entries for them.
+
+**The rule:** every new migration file (generated via `db:generate` /
+`db:generate:custom`, or added by hand as this project's convention
+otherwise requires) MUST have a corresponding entry appended to
+`src/db/migrations/meta/_journal.json`'s `entries` array, `tag` matching the
+file's name without `.sql`, `idx` one past the previous entry, `when` any
+later millisecond timestamp than the previous entry's. `db:generate`/
+`db:generate:custom` do this automatically when they work; this note exists
+for the case — already the norm in this project since 0002 — where a
+migration is added by hand without going through either command. No
+snapshot file (`meta/NNNN_snapshot.json`) is required for a hand-written
+migration: those are only used by `drizzle-kit generate` for TS-schema
+diffing, never read by the runtime `migrate()` path — confirmed by
+inspecting `readMigrationFiles()` itself, and consistent with this project's
+pre-existing state (no snapshot files exist for 0002 through 0016, all
+hand-written, and migrations apply correctly regardless).
 
 ### Reversibility
 
@@ -946,3 +1011,129 @@ constraints in `catalog.ts`, `sales.ts`, `billing.ts`.
 
    Both the RLS rewrite and the exclusive-arc rewrite (entry 2r) were done
    once, in this single migration, as scoped.
+2y. **Supplier purchasing (`0015`) -- floor/ceiling split, mirroring 2x,
+   restated per this migration's own brief instruction to document it
+   again.** `supplier_deliveries` is FLOOR-scoped with the same store
+   predicate as `stock_transfers`/`stock_counts` (it carries `warehouse_id`
+   directly and is read on a store-scoped dashboard). `supplier_delivery_
+   lines` is floor-only (line table, same convention as `sale_lines`/
+   `stock_transfer_lines`). `supplier_payments` is **deliberately** floor-
+   only with **no store predicate and no `warehouse_id` column at all** --
+   the architect's product decision is that supplier debt is consolidated
+   at TENANT level (a gerant sees the deliveries that landed in their own
+   store, never the global supplier balance), and a single payment may
+   settle deliveries across several stores at once via
+   `supplier_payment_allocations` (also floor-only, mirrors the existing
+   `payment_allocations`). Verified by execution against a disposable
+   `postgres:16-alpine` container: a `manager` membership scoped to store A
+   sees exactly the `supplier_deliveries` row delivered into store A (count
+   = 1), the symmetric manager scoped to store B sees only store B's row,
+   an unscoped `owner` sees both (count = 2); `supplier_payments` returns
+   the SAME row count for the store-A-scoped manager as for the owner
+   (count = 1 each) -- confirming it is NOT store-filtered, by design.
+   `supplier_deliveries_paid_le_total_chk` (mirrors `invoices_paid_le_
+   total_chk`): `paid_minor = total_minor` succeeds, `paid_minor >
+   total_minor` -- `check_violation`. Cross-tenant `supplier_id` on
+   `supplier_deliveries` -- `foreign_key_violation`; same-tenant --
+   succeeds. `app_scoped_warehouse_id()` and `stock_movements.supplier_
+   delivery_id`'s composite FK (activated here; 0014 added the column
+   specifically so this migration's only job on that column is the FK) both
+   confirmed working. `app_user`'s grants on all four new tables are
+   exactly select/insert/update/delete, confirmed via
+   `information_schema.role_table_grants`. Deliberately NOT reusing
+   `payments`/`invoices` for the supplier side -- those are customer-side by
+   construction; adding a `party_type` column would recreate exactly the
+   polymorphic reference 0009/0014 spent two migrations retiring (2r).
+2z. **Rebates + global search (`0016`).**
+   - `rebate_scales`'s exactly-one-party CHECK
+     (`rebate_scales_exactly_one_party_chk`, `num_nonnulls(customer_id,
+     supplier_id) = 1`) applies the 2r lesson preventively: two explicit
+     composite-FK columns, not a `party_type`/`party_id` polymorph. Verified
+     by execution: zero parties and two parties both -- `check_violation`;
+     exactly one -- succeeds. A second CHECK
+     (`rebate_scales_party_model_chk`) additionally pins the product
+     decision that the customer side is always `monthly` and the supplier
+     side is always `cyclic` -- a customer scale with `model = 'cyclic'` (or
+     the reverse) is rejected the same way, confirmed by execution.
+   - `rebate_grants` is a HISTORY table with a CRITICAL, STRUCTURAL
+     invariant: there is no foreign key, and must never be one, to
+     `payments`/`invoices`/`supplier_payments`/any balance column -- a
+     rebate is informational only, never auto-deducted. Its only FK target
+     is `rebate_scales`. This is enforced by what the table simply does NOT
+     reference, flagged in both the migration's and the TS schema's header
+     comments as the trip-wire for a security-reviewer pass if anyone ever
+     adds such an FK later.
+   - The monthly-only partial unique index
+     (`rebate_grants_structure_scale_period_label_idx`, `unique
+     (structure_id, scale_id, period_label) where model = 'monthly'`) is
+     implemented with a DENORMALIZED COPY of the scale's model on the grant
+     row itself (`rebate_grants.model`), copied at grant time -- Postgres
+     partial-index predicates cannot reference another table via a
+     correlated subquery, so the model had to live on the row being
+     indexed. Verified by execution: two grants for the same scale+
+     `period_label` under `model = 'monthly'` -- second insert is a
+     `unique_violation`; two (or more) `model = 'cyclic'` grants for the
+     same scale with `period_label` left NULL -- both/all insert cleanly
+     (Postgres never treats multiple NULLs as duplicates in a unique index).
+   - `rebate_grants_granted_by_trigger_chk` (`(trigger = 'manual') =
+     (granted_by is not null)`): an `auto`-triggered grant with a non-NULL
+     `granted_by` -- `check_violation`, confirmed by execution; the valid
+     "auto, no human actor" and "manual, named actor" shapes both insert.
+   - `pg_trgm` installed in `extensions` (not `public` -- 0004's convention,
+     avoids reopening the PostgREST/Data-API surface C2 closed), with GIN
+     indexes on `products(name)`, `products(sku)`, `customers(name)`,
+     `customers(phone)`, `suppliers(name)`. `EXECUTE` on every function in
+     `extensions` (pg_trgm's own, and pgcrypto's, re-asserted) is revoked
+     from PUBLIC and granted to `app_user` only -- confirmed by execution:
+     `has_function_privilege('public', 'extensions.similarity(text,
+     text)', 'execute')` is `false`, `has_function_privilege('app_user',
+     ...)` is `true`, and a real trigram query
+     (`... where name OPERATOR(extensions.%) 'riz'`) executes successfully
+     under `app_user` with RLS active.
+
+     **Judgment call flagged for security-reviewer:** unlike pgcrypto's
+     functions (only ever reached transitively through a SECURITY DEFINER
+     function, so `app_user` never needed direct EXECUTE on them), pg_trgm's
+     `%`/similarity operators are invoked under the CALLING role's own
+     privileges -- `app_user` needs EXECUTE directly, including on several
+     undocumented GIN-opclass support functions. Rather than hand-enumerate
+     pg_trgm's ~20 functions (several of them Postgres-internal and subject
+     to change across minor versions), this migration grants EXECUTE on
+     ALL functions in `extensions` to `app_user` -- which also hands it
+     pgcrypto's functions it did not have before. Accepted: `app_user` is
+     already the single fully-trusted, fully-tenant-scoped app-facing role
+     with full CRUD on every business table; this is not a privilege
+     escalation relative to what it already controls, and the actual
+     security boundary (no PostgREST/anon exposure, PUBLIC locked out) is
+     unaffected -- confirmed PUBLIC still cannot execute anything in
+     `extensions`.
+   - `customers` gained `is_active`, `credit_limit_minor`,
+     `default_payment_terms_days`, `address`, `notes` for the clients
+     screen. `address`/`notes` are free-text and not E.164 phone, so D7's
+     "no HMAC, clear text, tenant-scoped" decision doesn't literally apply,
+     but they are still customer PII/business-sensitive by nature (a
+     customer's address, free-text notes a cashier might write about them)
+     -- flagged for security-reviewer alongside every other PII-adjacent
+     column in this schema (entry 5), same tenant-floor RLS as the rest of
+     `customers`, no new column-level restriction added.
+
+   Validated by execution against a disposable `postgres:16-alpine`
+   container, full chain 0000->0016 (business) + identity 0000->0001:
+   `app_user`'s grants on `rebate_scales`/`rebate_tiers`/`rebate_grants` are
+   exactly select/insert/update/delete. Condensed cumulative exploit suite
+   (C1, H-D, H-A, H-F, H-I) re-run with zero regression. Both down scripts
+   (0016 then 0015) applied against the full 0000->0016 chain including
+   drizzle's own journal-row cleanup (see "Rollback keeps drizzle's own
+   journal honest" above); a partial rollback (down 0016, down 0015, then
+   `migrate:all`) re-applied exactly those two migrations and left
+   0000-0014's objects untouched, confirmed by re-running
+   `scripts/ci/verify-business-schema.sql`. A full reverse sweep (every
+   `down/*.down.sql`, highest-numbered first, down to `0000`) followed by a
+   fresh `migrate:all` (business + identity) was also run end-to-end and
+   re-applied all 17 business migrations + 2 identity migrations correctly,
+   confirming 0015/0016 introduced no regression in that whole-chain cycle
+   either -- see the new "`meta/_journal.json` is the real source" section
+   above for the one real gap this exercise found (not a regression in
+   0000-0014's own down scripts, but a gap in how a BRAND NEW hand-written
+   migration gets picked up at all, which 0015/0016 hit first simply by
+   being the first ones added since that mechanism was last exercised).

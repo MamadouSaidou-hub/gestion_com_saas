@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Package,
   Receipt,
+  Store,
   Truck,
   UserCog,
 } from "lucide-react";
@@ -33,7 +34,8 @@ export type NavKey =
   | "products"
   | "suppliers"
   | "invoices"
-  | "team";
+  | "team"
+  | "warehouses";
 
 export interface NavItemDef {
   key: NavKey;
@@ -105,6 +107,20 @@ export const GESTION_NAV: NavItemDef[] = [
     icon: UserCog,
     permissions: ["settings:write", "audit:read"],
     comingSoon: true,
+  },
+  {
+    // Multi-store (migration 0014): "Magasins" -- list/create/archive is
+    // owner-gated INSIDE the screen itself; the nav entry is shown to
+    // every role that holds `warehouse:write` (owner/manager/stock_keeper
+    // in the shared matrix) so a manager/stock_keeper can still see the
+    // READ-ONLY store list (needed to understand a gerant's scope), even
+    // though create/archive there is further restricted to `role ===
+    // "owner"` by create-warehouse.ts/archive-warehouse.ts.
+    key: "warehouses",
+    href: (id) => `/s/${id}/parametres/magasins`,
+    label: dict.warehouses.title,
+    icon: Store,
+    permissions: ["warehouse:write"],
   },
 ];
 

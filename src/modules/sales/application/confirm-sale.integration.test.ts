@@ -58,7 +58,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-A", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "100.0000", 600);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     // Credit (zero-payment) sale -- needs an identified customer per the
     // "any unpaid balance" rule, unrelated to what THIS test actually
     // exercises (idempotency), so just supply one.
@@ -91,7 +91,7 @@ describe("confirmSale", () => {
     await setStockLevel(fixture, productA, "100.0000", 600);
     await setStockLevel(fixture, productB, "1.0000", 1200); // only 1 in stock
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const input = baseInput({
       warehouseId: fixture.warehouseId,
       lines: [
@@ -122,7 +122,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-C", priceMinor: 500, costMinor: 300 });
     await setStockLevel(fixture, productId, "1000.0000", 300);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const N = 8;
 
     const results = await Promise.all(
@@ -151,7 +151,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-D1", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "1.0000", 600);
     const cashierUserId = await addMembership(fixture, "cashier");
-    const cashier: Actor = { userId: cashierUserId, structureId: fixture.structureId, role: "cashier" };
+    const cashier: Actor = { userId: cashierUserId, structureId: fixture.structureId, role: "cashier", warehouseId: null };
 
     const input = baseInput({
       warehouseId: fixture.warehouseId,
@@ -165,7 +165,7 @@ describe("confirmSale", () => {
   });
 
   it("(d) a cashier cannot void a sale (direct permission check)", () => {
-    const cashier: Actor = { userId: "test-cashier-novoid", structureId: randomUUID(), role: "cashier" };
+    const cashier: Actor = { userId: "test-cashier-novoid", structureId: randomUUID(), role: "cashier", warehouseId: null };
     expect(() => assertCan(cashier, "sale:void")).toThrow(ForbiddenError);
   });
 
@@ -179,7 +179,7 @@ describe("confirmSale", () => {
     // gated query is attempted (otherwise this would fail with an RLS
     // error instead of ForbiddenError, which would be the wrong failure
     // mode for this test).
-    const auditor: Actor = { userId: "test-auditor-norights", structureId: fixture.structureId, role: "auditor" };
+    const auditor: Actor = { userId: "test-auditor-norights", structureId: fixture.structureId, role: "auditor", warehouseId: null };
     const input = baseInput({ warehouseId: fixture.warehouseId, lines: [{ productId, quantity: "1.0000" }] });
 
     await expect(
@@ -195,7 +195,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-CREDIT", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "50.0000", 600);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const input = baseInput({
       warehouseId: fixture.warehouseId,
       customerId: fixture.customerId,
@@ -220,7 +220,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-PARTIAL", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "50.0000", 600);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const input = baseInput({
       warehouseId: fixture.warehouseId,
       // no customerId -- anonymous walk-in
@@ -242,7 +242,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-ANON-CREDIT", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "50.0000", 600);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const input = baseInput({
       warehouseId: fixture.warehouseId,
       // no customerId -- anonymous walk-in
@@ -263,7 +263,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-PAID", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "50.0000", 600);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const input = baseInput({
       warehouseId: fixture.warehouseId,
       lines: [{ productId, quantity: "1.0000" }], // total = 1000 (no VAT configured -> 0%)
@@ -288,7 +288,7 @@ describe("confirmSale", () => {
     await setStockLevel(fixture, productId, "50.0000", 600);
     await setVatRate(fixture, "18.00");
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const input = baseInput({
       warehouseId: fixture.warehouseId,
       lines: [{ productId, quantity: "1.0000" }], // HT = 1000, TTC = 1180
@@ -311,7 +311,7 @@ describe("confirmSale", () => {
     await setStockLevel(fixture, productA, "50.0000", 600);
     await setStockLevel(fixture, productB, "50.0000", 1200);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const sharedKey = `test-h1-${randomUUID()}`;
 
     const first = await withTenantSession(owner, (ctx) =>
@@ -372,7 +372,7 @@ describe("confirmSale", () => {
     const productId = await createProduct(fixture, { sku: "SKU-H3", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "100.0000", 600);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
 
     const [saleResult, adjustResult] = await Promise.all([
       withTenantSession(owner, (ctx) =>

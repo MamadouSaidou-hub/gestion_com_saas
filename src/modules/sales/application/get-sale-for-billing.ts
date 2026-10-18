@@ -10,6 +10,7 @@ import type { SalesRepository, SaleStatus, SalePaymentStatus } from "./ports";
 export interface SaleForBilling {
   id: string;
   customerId: string | null;
+  warehouseId: string;
   currencyCode: string;
   status: SaleStatus;
   totalMinor: MoneyMinorDto;
@@ -32,6 +33,7 @@ export async function getSaleForBilling(
   return {
     id: sale.id,
     customerId: sale.customerId,
+    warehouseId: sale.warehouseId,
     currencyCode: sale.currencyCode,
     status: sale.status,
     totalMinor: moneyToDto(sale.totalMinor),

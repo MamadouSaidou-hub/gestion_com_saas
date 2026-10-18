@@ -44,6 +44,9 @@ export const documentTypeEnum = pgEnum("document_type", [
   // Added by migration 0014 (ALTER TYPE ... ADD VALUE): inter-store
   // transfers get their own gapless counter (stock_transfers.reference).
   "transfer",
+  // Added by migration 0015 (ALTER TYPE ... ADD VALUE): supplier deliveries
+  // get their own gapless counter (supplier_deliveries.reference).
+  "delivery",
 ]);
 
 // One row per tenant: VAT rate, legal mentions, invoice prefix. Config, not

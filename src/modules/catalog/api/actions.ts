@@ -12,8 +12,11 @@ import {
   CategoryCycleError,
   DuplicateCategoryNameError,
   InvalidCategoryParentError,
+  DuplicateWarehouseCodeError,
+  WarehouseNotFoundError,
+  InvalidWarehouseInputError,
 } from "../index";
-import type { CategoryDto, AssignProductsToCategoryResult } from "../index";
+import type { CategoryDto, AssignProductsToCategoryResult, WarehouseDto } from "../index";
 
 // ---------------------------------------------------------------------------
 // Thin Server Actions for the catalog module -- NOT wired to any screen yet
@@ -311,5 +314,100 @@ export async function assignProductsToCategoryAction(
       return { ok: false, code: "NOT_FOUND", message: "Ce rayon n'existe plus." };
     }
     return { ok: false, code: "UNKNOWN", message: "Impossible de déplacer ces produits." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Warehouses ("Magasins", multi-store migration 0014) -- same thin-action
+// discipline as everything above, real and wired to /parametres/magasins.
+// ---------------------------------------------------------------------------
+
+const createWarehouseSchema = z.object({
+  code: z.string().trim().min(1).max(20),
+  name: z.string().trim().min(1).max(200),
+  kind: z.enum(["store", "depot"]),
+  address: z.string().trim().max(500).nullable().optional(),
+  phone: z.string().trim().max(20).nullable().optional(),
+});
+
+export type WarehouseActionErrorCode =
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "DUPLICATE_CODE"
+  | "INVALID_INPUT"
+  | "UNKNOWN";
+
+export type WarehouseActionResult =
+  | { ok: true; warehouse: WarehouseDto }
+  | { ok: false; code: WarehouseActionErrorCode; message: string };
+
+export async function listWarehousesAction(structureId: string): Promise<WarehouseDto[]> {
+  const session = await getSession();
+  if (!session) {
+    throw new UnauthenticatedError();
+  }
+  const actor = await resolveActor(session, structureId);
+  return withTenantSession(actor, (ctx) => catalogService.listWarehouses(ctx, {}));
+}
+
+export async function createWarehouseAction(
+  structureId: string,
+  formData: FormData
+): Promise<WarehouseActionResult> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, code: "UNAUTHENTICATED", message: "Session expirée." };
+    }
+    const actor = await resolveActor(session, structureId);
+    const parsed = createWarehouseSchema.parse({
+      code: formData.get("code"),
+      name: formData.get("name"),
+      kind: formData.get("kind") || "store",
+      address: formData.get("address") || null,
+      phone: formData.get("phone") || null,
+    });
+    const warehouse = await withTenantSession(actor, (ctx) => catalogService.createWarehouse(ctx, parsed));
+    return { ok: true, warehouse };
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ok: false, code: "FORBIDDEN", message: "Seul le propriétaire peut créer un magasin." };
+    }
+    if (err instanceof DuplicateWarehouseCodeError) {
+      return { ok: false, code: "DUPLICATE_CODE", message: err.message };
+    }
+    if (err instanceof InvalidWarehouseInputError) {
+      return { ok: false, code: "INVALID_INPUT", message: err.message };
+    }
+    return { ok: false, code: "UNKNOWN", message: "Impossible de créer ce magasin." };
+  }
+}
+
+export async function archiveWarehouseAction(
+  structureId: string,
+  warehouseId: string
+): Promise<WarehouseActionResult> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, code: "UNAUTHENTICATED", message: "Session expirée." };
+    }
+    const actor = await resolveActor(session, structureId);
+    const warehouse = await withTenantSession(actor, (ctx) =>
+      catalogService.archiveWarehouse(ctx, warehouseId)
+    );
+    return { ok: true, warehouse };
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ok: false, code: "FORBIDDEN", message: "Seul le propriétaire peut archiver un magasin." };
+    }
+    if (err instanceof WarehouseNotFoundError) {
+      return { ok: false, code: "NOT_FOUND", message: err.message };
+    }
+    if (err instanceof InvalidWarehouseInputError) {
+      return { ok: false, code: "INVALID_INPUT", message: err.message };
+    }
+    return { ok: false, code: "UNKNOWN", message: "Impossible d'archiver ce magasin." };
   }
 }

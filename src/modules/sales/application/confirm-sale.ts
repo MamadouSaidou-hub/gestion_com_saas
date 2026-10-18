@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assertCan, can } from "@/modules/tenancy/permissions";
+import { assertCan, assertStoreAccess, can } from "@/modules/tenancy/permissions";
 import { requireStepUp } from "@/modules/tenancy/step-up";
 import { getStructureSettings } from "@/modules/tenancy/structure-settings";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
@@ -84,6 +84,13 @@ export async function confirmSale(
   // Step 1: authorization, THEN shape validation.
   assertCan(ctx.actor, "sale:create");
   const input = confirmSaleSchema.parse(rawInput);
+
+  // multi-store: a `warehouseId` arriving from the client (the POS store
+  // selector, or a forged form field) MUST pass through assertStoreAccess
+  // before anything else -- a gerant (store-scoped membership) confirming a
+  // sale against a DIFFERENT store is rejected here, BEFORE any stock lock,
+  // ticket allocation or payment is touched.
+  assertStoreAccess(ctx.actor, input.warehouseId);
 
   for (const line of input.lines) {
     if (!Quantity.fromString(line.quantity).isPositive()) {
@@ -337,6 +344,7 @@ export async function confirmSale(
     await billingService.recordSalePayment(ctx, {
       saleId: draft.id,
       customerId: input.customerId ?? null,
+      warehouseId: input.warehouseId,
       amountMinor: paidMinor,
       currencyCode: input.currencyCode,
       method: input.payment.method satisfies PaymentMethod,

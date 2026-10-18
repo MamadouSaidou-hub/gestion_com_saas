@@ -1,4 +1,4 @@
-import { assertCan } from "@/modules/tenancy/permissions";
+import { assertCan, assertStoreAccess } from "@/modules/tenancy/permissions";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { Quantity } from "../domain/quantity";
 import { computeCumpOnReceipt } from "../domain/valuation";
@@ -33,13 +33,24 @@ export interface RebuildStockLevelsResult {
 // maintenance operation an owner runs occasionally when the projection is
 // suspected to have drifted, not part of the normal sales hot path.
 // ---------------------------------------------------------------------------
+// multi-store: `warehouseId` optional -- `null` (the default) rebuilds
+// EVERY (product, warehouse) pair the tenant has ever moved stock for,
+// across every store; a real id restricts the rebuild to just that one
+// store's pairs. `assertStoreAccess` still applies even though
+// `stock:rebuild` is owner-only (owners are always unscoped, so this is
+// currently a no-op check) -- kept for consistency should the permission
+// ever be loosened to a store-scoped role.
 export async function rebuildStockLevels(
   ctx: TenantSessionContext,
-  repo: StockRepository
+  repo: StockRepository,
+  warehouseId: string | null = null
 ): Promise<RebuildStockLevelsResult> {
   assertCan(ctx.actor, "stock:rebuild");
+  if (warehouseId) {
+    assertStoreAccess(ctx.actor, warehouseId);
+  }
 
-  const pairs = await repo.listDistinctProductWarehousePairs(ctx);
+  const pairs = await repo.listDistinctProductWarehousePairs(ctx, warehouseId);
 
   for (const pair of pairs) {
     const movements = await repo.listAllMovementsForRebuild(ctx, pair.productId, pair.warehouseId);

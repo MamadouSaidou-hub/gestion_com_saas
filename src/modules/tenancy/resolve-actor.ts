@@ -78,7 +78,11 @@ export async function resolveActor(
     await tx.execute(sql`select set_config('app.user_id', ${userId}, true)`);
 
     const rows = await tx
-      .select({ role: memberships.role, status: memberships.status })
+      .select({
+        role: memberships.role,
+        status: memberships.status,
+        warehouseId: memberships.warehouseId,
+      })
       .from(memberships)
       .where(
         and(
@@ -100,5 +104,8 @@ export async function resolveActor(
     userId,
     structureId: structureIdFromUrl,
     role: row.role,
+    // multi-store (migration 0014): same row, same round trip, no extra
+    // query -- NULL (all-stores scope) for an owner or an unscoped member.
+    warehouseId: row.warehouseId,
   };
 }

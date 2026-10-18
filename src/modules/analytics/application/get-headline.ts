@@ -1,4 +1,4 @@
-import { assertCan, can } from "@/modules/tenancy/permissions";
+import { assertCan, can, resolveStoreScope } from "@/modules/tenancy/permissions";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { moneyToDto } from "@/platform/dto/money";
 import { resolvePeriodWindow, isLiveWindowEnd } from "../domain/period";
@@ -37,7 +37,9 @@ export async function getHeadline(
   const window = resolvePeriodWindow(input.period, referenceDate);
   const current = { start: window.currentStart, end: window.currentEnd };
 
-  const ownSummary = await repo.getOwnSalesSummary(ctx, ctx.actor.userId, current);
+  const storeScope = resolveStoreScope(ctx.actor, input.warehouseId);
+
+  const ownSummary = await repo.getOwnSalesSummary(ctx, ctx.actor.userId, current, storeScope);
   const base: HeadlineDto = {
     ownSaleCount: ownSummary.saleCount,
     ownTotalMinor: moneyToDto(ownSummary.totalMinor),
@@ -48,10 +50,10 @@ export async function getHeadline(
   }
 
   const [totals, encaisse] = await Promise.all([
-    repo.getSalesWindowTotals(ctx, current),
+    repo.getSalesWindowTotals(ctx, current, storeScope),
     // H5 fix, made conditional by M-c -- see isLiveWindowEnd's comment
     // (domain/period.ts) and get-dashboard.ts's identical call site.
-    repo.getEncaisse(ctx, isLiveWindowEnd(current.end) ? { start: current.start } : current),
+    repo.getEncaisse(ctx, isLiveWindowEnd(current.end) ? { start: current.start } : current, storeScope),
   ]);
 
   base.financials = {

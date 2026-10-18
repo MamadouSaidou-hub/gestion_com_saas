@@ -19,6 +19,7 @@ function toFullRecord(row: PaymentRow): PaymentFullRecord {
     id: row.id,
     saleId: row.saleId,
     customerId: row.customerId,
+    warehouseId: row.warehouseId,
     amountMinor: row.amountMinor,
     currencyCode: row.currencyCode,
     method: row.method,
@@ -40,6 +41,7 @@ export const paymentRepository: PaymentRepository = {
         structureId: ctx.actor.structureId,
         customerId: input.customerId,
         saleId: input.saleId,
+        warehouseId: input.warehouseId,
         amountMinor: input.amountMinor,
         currencyCode: input.currencyCode,
         method: input.method,
@@ -62,6 +64,7 @@ export const paymentRepository: PaymentRepository = {
         structureId: ctx.actor.structureId,
         customerId: input.customerId,
         saleId: input.saleId,
+        warehouseId: input.warehouseId,
         amountMinor: input.amountMinor,
         currencyCode: input.currencyCode,
         method: input.method,
@@ -106,6 +109,13 @@ export const paymentRepository: PaymentRepository = {
     if (filter.saleIds) {
       // L-b fix -- see invoice-repository.ts's identical comment.
       conditions.push(inArray(payments.saleId, filter.saleIds));
+    }
+    // multi-store: app-layer ceiling on top of RLS's floor -- explicit, not
+    // just relying on the RLS predicate, so a store-scoped actor's listing
+    // is provably filtered here too (defense in depth, same discipline as
+    // every other required `scope`/`storeScope` parameter in this codebase).
+    if (filter.storeScope !== null) {
+      conditions.push(eq(payments.warehouseId, filter.storeScope));
     }
     const rows = await ctx.db
       .select()

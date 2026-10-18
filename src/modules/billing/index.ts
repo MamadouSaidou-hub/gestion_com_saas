@@ -41,7 +41,8 @@ export const billingService = {
     useCases.listInvoices(ctx, filter, invoiceRepository),
   getInvoice: (ctx: TenantSessionContext, invoiceId: string) =>
     useCases.getInvoice(ctx, invoiceId, invoiceRepository),
-  listPayments: (ctx: TenantSessionContext) => useCases.listPayments(ctx, paymentRepository),
+  listPayments: (ctx: TenantSessionContext, requestedWarehouseId?: string | null) =>
+    useCases.listPayments(ctx, paymentRepository, requestedWarehouseId),
   getReceivables: (ctx: TenantSessionContext) => useCases.getReceivables(ctx, invoiceRepository),
 };
 

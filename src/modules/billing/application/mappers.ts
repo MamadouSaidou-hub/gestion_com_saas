@@ -23,6 +23,7 @@ export function toPaymentDto(record: PaymentFullRecord): PaymentDto {
     id: record.id,
     saleId: record.saleId,
     customerId: record.customerId,
+    warehouseId: record.warehouseId,
     amountMinor: moneyToDto(record.amountMinor),
     currencyCode: record.currencyCode,
     method: record.method,

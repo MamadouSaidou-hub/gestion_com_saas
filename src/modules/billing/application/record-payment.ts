@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assertCan } from "@/modules/tenancy/permissions";
+import { assertCan, assertStoreAccess } from "@/modules/tenancy/permissions";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { moneyFromDto, moneyToDto } from "@/platform/dto/money";
 import { salesService } from "@/modules/sales";
@@ -50,9 +50,16 @@ export async function recordPayment(
     throw new SaleNotConfirmedError(input.saleId);
   }
 
+  // multi-store: the store is implied by the sale being paid off, never
+  // client-supplied -- still re-checked against the actor's own store
+  // scope so a gerant cannot pay off (or discover the existence of) a sale
+  // from a DIFFERENT store just by guessing its id.
+  assertStoreAccess(ctx.actor, sale.warehouseId);
+
   const inserted = await repos.paymentRepo.tryInsertStandalone(ctx, {
     saleId: input.saleId,
     customerId: sale.customerId,
+    warehouseId: sale.warehouseId,
     amountMinor,
     currencyCode: sale.currencyCode,
     method: input.method,

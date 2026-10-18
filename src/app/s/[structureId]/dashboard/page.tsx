@@ -20,6 +20,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumb } from "@/components/nav/breadcrumb";
 import { analyticsService } from "@/modules/analytics";
+import { catalogService } from "@/modules/catalog";
+import { StoreSelector, LockedStoreLabel } from "@/components/nav/store-selector";
 import { updateStructureDisplayName } from "./actions";
 
 // Gated, structure-scoped page: /s/[structureId]/dashboard -- now wired to
@@ -36,10 +38,13 @@ function currencyForCountry(countryCode: string): SupportedCurrency {
 
 export default async function DashboardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ structureId: string }>;
+  searchParams: Promise<{ warehouseId?: string }>;
 }) {
   const { structureId } = await params;
+  const { warehouseId: requestedWarehouseId } = await searchParams;
 
   const session = await getSession();
   if (!session) {
@@ -59,13 +64,20 @@ export default async function DashboardPage({
     throw err;
   }
 
-  const structure = await withTenantSession(actor, async ({ db }) => {
-    const [row] = await db
+  // multi-store (migration 0014): the store list is fetched in the SAME
+  // session as the structure row (one extra query, not one extra round
+  // trip) -- the selector only materialises for an UNSCOPED actor once a
+  // SECOND store exists ("a single-store shop must not get more complex",
+  // rule D). A store-scoped actor (gerant) never sees a selector at all,
+  // just their own store's name.
+  const { structure, allWarehouses } = await withTenantSession(actor, async (ctx) => {
+    const [row] = await ctx.db
       .select({ name: structures.name, countryCode: structures.countryCode })
       .from(structures)
       .where(eq(structures.id, actor.structureId))
       .limit(1);
-    return row;
+    const allWarehouses = await catalogService.listWarehouses(ctx, { activeOnly: true });
+    return { structure: row, allWarehouses };
   });
 
   if (!structure) {
@@ -75,6 +87,19 @@ export default async function DashboardPage({
   const canEditSettings = can(actor, "settings:write");
   const canSell = can(actor, "sale:create");
   const currency = currencyForCountry(structure.countryCode);
+  const storeOptions = allWarehouses
+    .filter((w) => w.kind === "store")
+    .map((w) => ({ id: w.id, name: w.name }));
+  const gerantStoreName = actor.warehouseId
+    ? allWarehouses.find((w) => w.id === actor.warehouseId)?.name ?? null
+    : null;
+  // Only a value matching a REAL store option is trusted for display --
+  // the actual query-side validation (assertStoreAccess/resolveStoreScope)
+  // happens again, independently, inside getHeadline/getDashboard.
+  const selectedWarehouseId =
+    requestedWarehouseId && storeOptions.some((o) => o.id === requestedWarehouseId)
+      ? requestedWarehouseId
+      : null;
 
   const quickLinks = [
     { href: `/s/${structureId}/ventes/nouvelle`, label: dict.dashboard.navSales, icon: Receipt, show: canSell },
@@ -93,10 +118,19 @@ export default async function DashboardPage({
         <p className="text-sm text-muted-foreground">
           {structure.name} <span aria-hidden="true">&middot;</span> <span className="capitalize">{actor.role}</span>
         </p>
+        {gerantStoreName ? (
+          <div className="mt-2">
+            <LockedStoreLabel name={gerantStoreName} />
+          </div>
+        ) : storeOptions.length > 1 ? (
+          <div className="mt-2">
+            <StoreSelector options={storeOptions} selectedId={selectedWarehouseId} />
+          </div>
+        ) : null}
       </header>
 
       <Suspense fallback={<HeadlineSkeleton />}>
-        <HeadlineSection actor={actor} currency={currency} />
+        <HeadlineSection actor={actor} currency={currency} warehouseId={selectedWarehouseId} />
       </Suspense>
 
       <section className="mb-6 mt-4" aria-labelledby="quick-actions-heading">
@@ -118,7 +152,12 @@ export default async function DashboardPage({
       </section>
 
       <Suspense fallback={<HeavyTilesSkeleton />}>
-        <HeavyTilesSection actor={actor} currency={currency} structureId={structureId} />
+        <HeavyTilesSection
+          actor={actor}
+          currency={currency}
+          structureId={structureId}
+          warehouseId={selectedWarehouseId}
+        />
       </Suspense>
 
       {canEditSettings && (
@@ -169,8 +208,18 @@ function HeadlineSkeleton() {
 // weight, which is exactly the ambiguity client feedback flagged. Nothing
 // is hidden: CA brut, CA net (the moment it diverges from brut) and
 // Encaissé are all still on screen, just not all shouting at once.
-async function HeadlineSection({ actor, currency }: { actor: Actor; currency: SupportedCurrency }) {
-  const headline = await withTenantSession(actor, (ctx) => analyticsService.getHeadline(ctx, { period: "day" }));
+async function HeadlineSection({
+  actor,
+  currency,
+  warehouseId,
+}: {
+  actor: Actor;
+  currency: SupportedCurrency;
+  warehouseId: string | null;
+}) {
+  const headline = await withTenantSession(actor, (ctx) =>
+    analyticsService.getHeadline(ctx, { period: "day", warehouseId })
+  );
 
   if (!headline.financials) {
     // Cashier (or any role without dashboard:read_financials): own sales
@@ -246,12 +295,16 @@ async function HeavyTilesSection({
   actor,
   currency,
   structureId,
+  warehouseId,
 }: {
   actor: Actor;
   currency: SupportedCurrency;
   structureId: string;
+  warehouseId: string | null;
 }) {
-  const dashboard = await withTenantSession(actor, (ctx) => analyticsService.getDashboard(ctx, { period: "day" }));
+  const dashboard = await withTenantSession(actor, (ctx) =>
+    analyticsService.getDashboard(ctx, { period: "day", warehouseId })
+  );
 
   return (
     <div className="space-y-4">
@@ -282,7 +335,10 @@ async function HeavyTilesSection({
               ) : (
                 <ul className="divide-y divide-border">
                   {dashboard.lowStockAlerts.map((item) => (
-                    <li key={item.productId} className="flex items-center justify-between gap-3 py-2.5">
+                    <li
+                      key={`${item.productId}-${item.warehouseId}`}
+                      className="flex items-center justify-between gap-3 py-2.5"
+                    >
                       <span className="truncate text-sm">{item.name}</span>
                       <Badge variant={Number(item.quantity) <= 0 ? "destructive" : "warning"}>
                         {Number(item.quantity) <= 0

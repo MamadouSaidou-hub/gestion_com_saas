@@ -59,10 +59,11 @@ export const stockMovements = pgTable(
     saleId: uuid("sale_id"),
     // --- Added by migration 0014 (closes debt 2r in full) ---
     // transfer_id / stock_count_id: composite-FK'd to stock_transfers /
-    // stock_counts (both new in 0014). supplier_delivery_id: column only --
-    // no FK yet, deferred to the migration that ships the
-    // supplier_deliveries table (later phase) -- it must still be one of
-    // the exclusive-arc slots below today.
+    // stock_counts (both new in 0014). supplier_delivery_id: column added
+    // here in 0014; its composite FK to supplier_deliveries (0015) is
+    // activated by that migration's hand-written SQL once the table exists
+    // -- not expressed as a `.references()`/`foreignKey()` thunk here, same
+    // import-cycle avoidance reasoning as transfer_id/stock_count_id below.
     transferId: uuid("transfer_id"),
     stockCountId: uuid("stock_count_id"),
     supplierDeliveryId: uuid("supplier_delivery_id"),

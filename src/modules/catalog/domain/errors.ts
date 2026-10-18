@@ -55,6 +55,29 @@ export class CategoryCycleError extends Error {
   }
 }
 
+// --- warehouses ("Magasins", migration 0014) ---
+
+export class DuplicateWarehouseCodeError extends Error {
+  constructor(code: string) {
+    super(`A store/depot with code "${code}" already exists in this structure.`);
+    this.name = "DuplicateWarehouseCodeError";
+  }
+}
+
+export class WarehouseNotFoundError extends Error {
+  constructor(warehouseId: string) {
+    super(`Warehouse "${warehouseId}" was not found.`);
+    this.name = "WarehouseNotFoundError";
+  }
+}
+
+export class InvalidWarehouseInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidWarehouseInputError";
+  }
+}
+
 // Blocks deletion rather than silently nulling out references -- see
 // delete-category.ts for the rationale.
 export class CategoryHasDependentsError extends Error {

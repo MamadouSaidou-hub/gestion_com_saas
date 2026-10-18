@@ -15,6 +15,7 @@ export async function listOpenSalesForBilling(
   return rows.map((row) => ({
     id: row.id,
     customerId: row.customerId,
+    warehouseId: row.warehouseId,
     currencyCode: row.currencyCode,
     status: row.status,
     totalMinor: row.totalMinor.toString(),

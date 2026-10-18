@@ -1,4 +1,4 @@
-import { assertCan, can } from "@/modules/tenancy/permissions";
+import { assertCan, can, resolveStoreScope } from "@/modules/tenancy/permissions";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { moneyToDto } from "@/platform/dto/money";
 import { billingService } from "@/modules/billing";
@@ -11,7 +11,7 @@ import {
   computeMargin,
 } from "../domain";
 import type { AnalyticsRepository } from "./ports";
-import type { DashboardDto, GetDashboardInput, TopProductDto, LowStockAlertDto } from "./dto";
+import type { DashboardDto, GetDashboardInput, TopProductDto } from "./dto";
 
 const TOP_PRODUCTS_WINDOW_DAYS = 30;
 const TOP_PRODUCTS_LIMIT = 5;
@@ -53,13 +53,17 @@ export async function getDashboard(
   const window = resolvePeriodWindow(input.period, referenceDate);
   const current = { start: window.currentStart, end: window.currentEnd };
 
-  const defaultWarehouseId = await repo.getDefaultWarehouseId(ctx);
+  // multi-store: a gerant ALWAYS gets their own store regardless of what
+  // (if anything) was requested; an unscoped actor (owner) gets the
+  // requested store or every store (`null`) when none was selected -- see
+  // resolveStoreScope's doc comment. This single value floors EVERY query
+  // below, replacing the old single-warehouse `getDefaultWarehouseId()`
+  // lookup this function used to lean on.
+  const storeScope = resolveStoreScope(ctx.actor, input.warehouseId);
 
   const [ownSummary, lowStockAlerts] = await Promise.all([
-    repo.getOwnSalesSummary(ctx, ctx.actor.userId, current),
-    defaultWarehouseId
-      ? inventoryService.listLowStock(ctx, defaultWarehouseId)
-      : Promise.resolve([] as LowStockAlertDto[]),
+    repo.getOwnSalesSummary(ctx, ctx.actor.userId, current, storeScope),
+    inventoryService.listLowStock(ctx, storeScope),
   ]);
 
   const base: DashboardDto = {
@@ -90,20 +94,24 @@ export async function getDashboard(
     sellerBreakdown,
     vatRate,
   ] = await Promise.all([
-    repo.getSalesWindowTotals(ctx, current),
-    repo.getSalesWindowTotals(ctx, previous),
+    repo.getSalesWindowTotals(ctx, current, storeScope),
+    repo.getSalesWindowTotals(ctx, previous, storeScope),
     // H5 fix, made conditional by M-c: the upper bound is only dropped
     // when `current.end` genuinely means "now" (today, never a
     // client-supplied past date) -- see isLiveWindowEnd's comment
     // (domain/period.ts). The PREVIOUS window always keeps its real
     // upper bound (a fixed point in the past, never "now").
-    repo.getEncaisse(ctx, isLiveWindowEnd(current.end) ? { start: current.start } : current),
-    repo.getEncaisse(ctx, previous),
-    repo.getEncaisseByMethod(ctx, isLiveWindowEnd(current.end) ? { start: current.start } : current),
+    repo.getEncaisse(ctx, isLiveWindowEnd(current.end) ? { start: current.start } : current, storeScope),
+    repo.getEncaisse(ctx, previous, storeScope),
+    repo.getEncaisseByMethod(
+      ctx,
+      isLiveWindowEnd(current.end) ? { start: current.start } : current,
+      storeScope
+    ),
     billingService.getReceivables(ctx),
-    repo.getTopProductsRaw(ctx, topProductsWindow),
-    repo.getMarginTotals(ctx, current),
-    repo.getSellerBreakdown(ctx, current),
+    repo.getTopProductsRaw(ctx, topProductsWindow, storeScope),
+    repo.getMarginTotals(ctx, current, storeScope),
+    repo.getSellerBreakdown(ctx, current, storeScope),
     billingService.getVatRate(ctx),
   ]);
 

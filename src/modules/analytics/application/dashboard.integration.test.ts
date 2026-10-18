@@ -43,7 +43,7 @@ async function makeFixtureWithProduct(priceMinor = 1000, costMinor = 600) {
 }
 
 function ownerActor(fixture: Awaited<ReturnType<typeof seedStructure>>): Actor {
-  return { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+  return { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
 }
 
 describe("dashboard money definitions", () => {
@@ -179,7 +179,7 @@ describe("dashboard money definitions", () => {
   it("(5) a cashier's dashboard response contains no financial fields at all", async () => {
     const { fixture } = await makeFixtureWithProduct();
     const cashierUserId = await addMembership(fixture, "cashier");
-    const cashier: Actor = { userId: cashierUserId, structureId: fixture.structureId, role: "cashier" };
+    const cashier: Actor = { userId: cashierUserId, structureId: fixture.structureId, role: "cashier", warehouseId: null };
 
     const dashboard = await withTenantSession(cashier, (ctx) =>
       analyticsService.getDashboard(ctx, { period: "day" })

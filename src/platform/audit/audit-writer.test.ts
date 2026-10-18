@@ -12,6 +12,7 @@ const actor: Actor = {
   userId: "user_1",
   structureId: "11111111-1111-1111-1111-111111111111",
   role: "owner",
+  warehouseId: null,
 };
 
 function makeFakeTx(): TenantTx {

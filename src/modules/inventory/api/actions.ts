@@ -78,7 +78,11 @@ export async function getStockLevelsAction(structureId: string, warehouseId?: st
   return withTenantSession(actor, (ctx) => inventoryService.getStockLevels(ctx, { warehouseId }));
 }
 
-export async function listLowStockAction(structureId: string, warehouseId: string) {
+// multi-store: `warehouseId` optional -- omitted/undefined aggregates
+// across every store the actor can see (via `resolveStoreScope`, applied
+// by `analyticsService`/other callers); this thin action simply forwards
+// whatever the caller resolved, it does not resolve scope itself.
+export async function listLowStockAction(structureId: string, warehouseId: string | null = null) {
   const session = await getSession();
   if (!session) {
     throw new UnauthenticatedError();

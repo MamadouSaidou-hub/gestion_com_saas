@@ -32,7 +32,7 @@ beforeAll(async () => {
 });
 
 function ownerActor(fixture: Awaited<ReturnType<typeof seedStructure>>): Actor {
-  return { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+  return { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
 }
 
 describe("catalog categories", () => {

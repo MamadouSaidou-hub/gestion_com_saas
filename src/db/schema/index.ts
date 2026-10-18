@@ -9,4 +9,6 @@ export * from "./inventory";
 export * from "./sales";
 export * from "./billing";
 export * from "./stock-transfers";
+export * from "./purchasing";
+export * from "./rebates";
 export * from "./audit";

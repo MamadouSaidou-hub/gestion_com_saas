@@ -26,6 +26,13 @@ export interface DocumentCounterRepository {
 export interface InsertSalePaymentInput {
   saleId: string;
   customerId: string | null;
+  // multi-store (migration 0014): `payments.warehouse_id` floors treasury
+  // reporting per store under RLS -- REQUIRED, not optional, so forgetting
+  // to pass it is a compile error rather than a silently-NULL row (which
+  // the DB tolerates for the documented edge case in db/README entry 2x,
+  // but every real write path here always has a real sale/store to derive
+  // it from).
+  warehouseId: string;
   amountMinor: bigint;
   currencyCode: string;
   method: string;
@@ -49,6 +56,7 @@ export interface PaymentFullRecord {
   id: string;
   saleId: string | null;
   customerId: string | null;
+  warehouseId: string | null;
   amountMinor: bigint;
   currencyCode: string;
   method: string;
@@ -61,6 +69,11 @@ export interface PaymentFullRecord {
 export interface InsertStandalonePaymentInput {
   saleId: string | null;
   customerId: string | null;
+  // multi-store -- see InsertSalePaymentInput.warehouseId. recordPayment
+  // derives this from the sale being paid off (`SaleForBilling.warehouseId`);
+  // a standalone payment with no sale is not a use case this app builds
+  // today, but the field stays required to keep every write path explicit.
+  warehouseId: string;
   amountMinor: bigint;
   currencyCode: string;
   method: string;
@@ -89,6 +102,11 @@ export interface ListPaymentsFilter {
   // 'own' scope filter into SQL (`sale_id IN (...)`) instead of fetching
   // every tenant row and filtering in application memory.
   saleIds?: string[];
+  // multi-store: REQUIRED (not optional) store-scope filter -- `null` means
+  // "every store the actor is allowed to see" (only valid for an unscoped
+  // actor; the application layer, not this filter type, is what enforces
+  // that via `assertStoreAccess`/`storeScopeFor` before this is ever built).
+  storeScope: string | null;
 }
 
 export interface PaymentRepository {

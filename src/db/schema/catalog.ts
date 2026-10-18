@@ -6,6 +6,7 @@ import {
   boolean,
   bigint,
   numeric,
+  integer,
   uniqueIndex,
   unique,
   index,
@@ -131,6 +132,11 @@ export const suppliers = pgTable(
     // with every other parent table in this file. Kept in sync here so
     // `drizzle-kit generate` does not see drift against 0003's `ALTER TABLE`.
     unique("suppliers_structure_id_id_idx").on(t.structureId, t.id),
+    // Added by migration 0016: global search. Schema-qualified opclass
+    // (extensions.gin_trgm_ops) -- `extensions` is deliberately not on this
+    // session's search_path (0004). Kept here so `drizzle-kit generate`
+    // does not see drift against 0016's hand-written `CREATE INDEX`.
+    index("suppliers_name_trgm_idx").using("gin", sql`${t.name} extensions.gin_trgm_ops`),
   ]
 );
 
@@ -147,12 +153,31 @@ export const customers = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    // --- Added by migration 0016: clients screen ---
+    isActive: boolean("is_active").notNull().default(true),
+    creditLimitMinor: bigint("credit_limit_minor", { mode: "bigint" }),
+    defaultPaymentTermsDays: integer("default_payment_terms_days"),
+    address: text("address"),
+    notes: text("notes"),
   },
   (t) => [
     index("customers_structure_id_idx").on(t.structureId),
     index("customers_phone_idx").on(t.structureId, t.phone),
     // Required for other tables' composite FK (structure_id, customer_id).
     unique("customers_structure_id_id_idx").on(t.structureId, t.id),
+    // Added by migration 0016:
+    index("customers_structure_is_active_idx").on(t.structureId, t.isActive),
+    check(
+      "customers_credit_limit_nonneg_chk",
+      sql`${t.creditLimitMinor} is null or ${t.creditLimitMinor} >= 0`
+    ),
+    check(
+      "customers_payment_terms_nonneg_chk",
+      sql`${t.defaultPaymentTermsDays} is null or ${t.defaultPaymentTermsDays} >= 0`
+    ),
+    // Global search (0016). See suppliers_name_trgm_idx comment above.
+    index("customers_name_trgm_idx").using("gin", sql`${t.name} extensions.gin_trgm_ops`),
+    index("customers_phone_trgm_idx").using("gin", sql`${t.phone} extensions.gin_trgm_ops`),
   ]
 );
 
@@ -209,5 +234,8 @@ export const products = pgTable(
       "products_low_stock_threshold_nonneg_chk",
       sql`${t.lowStockThreshold} is null or ${t.lowStockThreshold} >= 0`
     ),
+    // Global search (0016). See suppliers_name_trgm_idx comment above.
+    index("products_name_trgm_idx").using("gin", sql`${t.name} extensions.gin_trgm_ops`),
+    index("products_sku_trgm_idx").using("gin", sql`${t.sku} extensions.gin_trgm_ops`),
   ]
 );

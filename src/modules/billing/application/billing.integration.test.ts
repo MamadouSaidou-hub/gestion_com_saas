@@ -32,7 +32,7 @@ beforeAll(async () => {
 });
 
 async function confirmCreditSale(fixture: Awaited<ReturnType<typeof seedStructure>>, productId: string) {
-  const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+  const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
   const input: ConfirmSaleInput = {
     idempotencyKey: `test-idem-${randomUUID()}`,
     warehouseId: fixture.warehouseId,
@@ -52,7 +52,7 @@ describe("billing standalone use cases", () => {
     const sale = await confirmCreditSale(fixture, productId);
     expect(sale.paymentStatus).toBe("unpaid");
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const paymentIdemKey = `test-payment-${randomUUID()}`;
     const recordInput = {
       idempotencyKey: paymentIdemKey,
@@ -78,7 +78,7 @@ describe("billing standalone use cases", () => {
     await setStockLevel(fixture, productId, "50.0000", 600);
 
     const sale = await confirmCreditSale(fixture, productId); // total = 2000
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
 
     await expect(
       withTenantSession(owner, (ctx) =>
@@ -98,7 +98,7 @@ describe("billing standalone use cases", () => {
     await setStockLevel(fixture, productId, "50.0000", 600);
 
     const sale = await confirmCreditSale(fixture, productId);
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
 
     const first = await withTenantSession(owner, (ctx) => billingService.issueInvoiceForSale(ctx, sale.saleId));
     const second = await withTenantSession(owner, (ctx) => billingService.issueInvoiceForSale(ctx, sale.saleId));
@@ -114,7 +114,7 @@ describe("billing standalone use cases", () => {
     await setStockLevel(fixture, productId, "50.0000", 600);
 
     const sale = await confirmCreditSale(fixture, productId); // total = 2000
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
 
     const payment = await withTenantSession(owner, (ctx) =>
       billingService.recordPayment(ctx, {
@@ -153,7 +153,7 @@ describe("billing standalone use cases", () => {
     await setStockLevel(fixture, productId, "50.0000", 600);
 
     // total = 10 * 1000 = 10000, large enough that two 4000 payments don't overpay.
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const sale = await withTenantSession(owner, (ctx) =>
       salesService.confirmSale(ctx, {
         idempotencyKey: `test-idem-${randomUUID()}`,
@@ -196,7 +196,7 @@ describe("billing standalone use cases", () => {
     const productId = await createProduct(fixture, { sku: "SKU-C1-VOID", priceMinor: 1000, costMinor: 600 });
     await setStockLevel(fixture, productId, "50.0000", 600);
 
-    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner" };
+    const owner: Actor = { userId: fixture.ownerUserId, structureId: fixture.structureId, role: "owner", warehouseId: null };
     const sale = await confirmCreditSale(fixture, productId); // total = 2000
     const payment = await withTenantSession(owner, (ctx) =>
       billingService.recordPayment(ctx, {

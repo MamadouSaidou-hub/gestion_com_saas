@@ -44,10 +44,19 @@ function toInt(value: unknown): number {
   return Number(value);
 }
 
+// multi-store: every query below optionally ANDs in a parameterized
+// `warehouse_id = $1` condition (never raw string interpolation) -- empty
+// when `storeScope` is null (every store), filtered otherwise. This is the
+// app-layer CEILING restated explicitly in SQL on top of RLS's FLOOR (the
+// store-scope predicate already added to `sales`/`payments` in migration
+// 0014) -- a gerant's query is filtered twice, provably, not just left to
+// RLS alone.
+
 export const analyticsRepository: AnalyticsRepository = {
   async getSalesWindowTotals(
     ctx: TenantSessionContext,
-    window: WindowArgs
+    window: WindowArgs,
+    storeScope: string | null
   ): Promise<SalesWindowTotals> {
     const rows = await ctx.db.execute<{
       gross_count: unknown;
@@ -64,6 +73,7 @@ export const analyticsRepository: AnalyticsRepository = {
       where structure_id = ${ctx.actor.structureId}
         and confirmed_at >= ${window.start.toISOString()}
         and confirmed_at < ${window.end.toISOString()}
+        ${storeScope ? sql`and warehouse_id = ${storeScope}` : sql``}
     `);
     const row = rows[0];
     return {
@@ -74,38 +84,55 @@ export const analyticsRepository: AnalyticsRepository = {
     };
   },
 
-  async getEncaisse(ctx: TenantSessionContext, window: EncaisseWindowArgs): Promise<bigint> {
+  async getEncaisse(
+    ctx: TenantSessionContext,
+    window: EncaisseWindowArgs,
+    storeScope: string | null
+  ): Promise<bigint> {
     // H5 fix: no upper bound for the CURRENT window (window.end omitted)
     // -- see EncaisseWindowArgs's comment in ports.ts for why dropping it
     // is safe (a payment cannot legitimately be timestamped in the
     // future) and why it is the fix for the clock-drift false negative.
     const upperBound = window.end ? sql`and received_at < ${window.end.toISOString()}` : sql``;
+    const storeFilter = storeScope ? sql`and warehouse_id = ${storeScope}` : sql``;
     const rows = await ctx.db.execute<{ total: unknown }>(sql`
       select coalesce(sum(amount_minor), 0) as total
       from payments
       where structure_id = ${ctx.actor.structureId}
         and received_at >= ${window.start.toISOString()}
         ${upperBound}
+        ${storeFilter}
         and voided_at is null
     `);
     return toBigInt(rows[0]?.total);
   },
 
-  async getEncaisseByMethod(ctx: TenantSessionContext, window: EncaisseWindowArgs): Promise<MethodAmount[]> {
+  async getEncaisseByMethod(
+    ctx: TenantSessionContext,
+    window: EncaisseWindowArgs,
+    storeScope: string | null
+  ): Promise<MethodAmount[]> {
     const upperBound = window.end ? sql`and received_at < ${window.end.toISOString()}` : sql``;
+    const storeFilter = storeScope ? sql`and warehouse_id = ${storeScope}` : sql``;
     const rows = await ctx.db.execute<{ method: string; amount_minor: unknown }>(sql`
       select method, coalesce(sum(amount_minor), 0) as amount_minor
       from payments
       where structure_id = ${ctx.actor.structureId}
         and received_at >= ${window.start.toISOString()}
         ${upperBound}
+        ${storeFilter}
         and voided_at is null
       group by method
     `);
     return rows.map((row) => ({ method: row.method, amountMinor: toBigInt(row.amount_minor) }));
   },
 
-  async getTopProductsRaw(ctx: TenantSessionContext, window: WindowArgs): Promise<TopProductRow[]> {
+  async getTopProductsRaw(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<TopProductRow[]> {
+    const storeFilter = storeScope ? sql`and s.warehouse_id = ${storeScope}` : sql``;
     const rows = await ctx.db.execute<{
       product_id: string;
       sku: string;
@@ -126,6 +153,7 @@ export const analyticsRepository: AnalyticsRepository = {
         and s.status = 'confirmed'
         and s.confirmed_at >= ${window.start.toISOString()}
         and s.confirmed_at < ${window.end.toISOString()}
+        ${storeFilter}
       group by sl.product_id, p.sku, p.name
     `);
     return rows.map((row) => ({
@@ -137,7 +165,11 @@ export const analyticsRepository: AnalyticsRepository = {
     }));
   },
 
-  async getMarginTotals(ctx: TenantSessionContext, window: WindowArgs): Promise<MarginTotals> {
+  async getMarginTotals(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<MarginTotals> {
     // Correction (coordinator feedback): margin must compare COGS against
     // NET-of-VAT (HT) revenue, not TTC -- collected VAT is remitted to the
     // state, not revenue. Each line's HT amount is reconstructed from its
@@ -146,6 +178,7 @@ export const analyticsRepository: AnalyticsRepository = {
     // When vat_rate=0 (the common case -- most small shops aren't
     // VAT-registered, D4) this is exactly equal to line_total_minor, so
     // nothing changes for them.
+    const storeFilter = storeScope ? sql`and s.warehouse_id = ${storeScope}` : sql``;
     const rows = await ctx.db.execute<{ revenue_minor_ht: unknown; cost_minor: unknown }>(sql`
       select
         coalesce(sum(round(sl.line_total_minor * 10000 / (10000 + sl.vat_rate * 100))), 0) as revenue_minor_ht,
@@ -156,12 +189,18 @@ export const analyticsRepository: AnalyticsRepository = {
         and s.status = 'confirmed'
         and s.confirmed_at >= ${window.start.toISOString()}
         and s.confirmed_at < ${window.end.toISOString()}
+        ${storeFilter}
     `);
     const row = rows[0];
     return { revenueMinor: toBigInt(row?.revenue_minor_ht), costMinor: toBigInt(row?.cost_minor) };
   },
 
-  async getSellerBreakdown(ctx: TenantSessionContext, window: WindowArgs): Promise<SellerRow[]> {
+  async getSellerBreakdown(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<SellerRow[]> {
+    const storeFilter = storeScope ? sql`and warehouse_id = ${storeScope}` : sql``;
     const rows = await ctx.db.execute<{ seller_id: string; sale_count: unknown; total_minor: unknown }>(sql`
       select created_by as seller_id, count(*) as sale_count, coalesce(sum(total_minor), 0) as total_minor
       from sales
@@ -169,6 +208,7 @@ export const analyticsRepository: AnalyticsRepository = {
         and status = 'confirmed'
         and confirmed_at >= ${window.start.toISOString()}
         and confirmed_at < ${window.end.toISOString()}
+        ${storeFilter}
       group by created_by
     `);
     return rows.map((row) => ({
@@ -181,8 +221,10 @@ export const analyticsRepository: AnalyticsRepository = {
   async getOwnSalesSummary(
     ctx: TenantSessionContext,
     userId: string,
-    window: WindowArgs
+    window: WindowArgs,
+    storeScope: string | null
   ): Promise<OwnSalesSummary> {
+    const storeFilter = storeScope ? sql`and warehouse_id = ${storeScope}` : sql``;
     const rows = await ctx.db.execute<{ sale_count: unknown; total_minor: unknown }>(sql`
       select count(*) as sale_count, coalesce(sum(total_minor), 0) as total_minor
       from sales
@@ -191,17 +233,9 @@ export const analyticsRepository: AnalyticsRepository = {
         and created_by = ${userId}
         and confirmed_at >= ${window.start.toISOString()}
         and confirmed_at < ${window.end.toISOString()}
+        ${storeFilter}
     `);
     const row = rows[0];
     return { saleCount: toInt(row?.sale_count), totalMinor: toBigInt(row?.total_minor) };
-  },
-
-  async getDefaultWarehouseId(ctx: TenantSessionContext): Promise<string | null> {
-    const rows = await ctx.db.execute<{ id: string }>(sql`
-      select id from warehouses
-      where structure_id = ${ctx.actor.structureId} and is_default = true
-      limit 1
-    `);
-    return rows[0]?.id ?? null;
   },
 };

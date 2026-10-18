@@ -30,13 +30,20 @@ export const inventoryService = {
     useCases.getStockLevels(ctx, filter, stockRepository),
   listMovements: (ctx: TenantSessionContext, filter: ListMovementsFilter) =>
     useCases.listMovements(ctx, filter, stockRepository),
-  listLowStock: (ctx: TenantSessionContext, warehouseId: string) =>
-    useCases.listLowStock(ctx, warehouseId, stockRepository),
+  // multi-store: `storeScope` is REQUIRED -- `null` = every store the actor
+  // can see (resolved by the caller via `resolveStoreScope`, never guessed
+  // here).
+  listLowStock: (ctx: TenantSessionContext, storeScope: string | null) =>
+    useCases.listLowStock(ctx, stockRepository, storeScope),
   applyStockOut: (ctx: TenantSessionContext, input: ApplyStockOutInput) =>
     useCases.applyStockOut(ctx, input, stockRepository),
   reverseStockOut: (ctx: TenantSessionContext, input: ReverseStockOutInput) =>
     useCases.reverseStockOut(ctx, input, stockRepository),
-  rebuildStockLevels: (ctx: TenantSessionContext) => useCases.rebuildStockLevels(ctx, stockRepository),
+  // `warehouseId` optional -- `null`/omitted rebuilds EVERY (product,
+  // warehouse) pair in the tenant (unchanged default behaviour), a real id
+  // restricts the rebuild to one store's pairs only.
+  rebuildStockLevels: (ctx: TenantSessionContext, warehouseId?: string | null) =>
+    useCases.rebuildStockLevels(ctx, stockRepository, warehouseId ?? null),
 };
 
 export { Quantity, InvalidQuantityError } from "./domain/quantity";

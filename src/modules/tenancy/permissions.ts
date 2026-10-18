@@ -329,3 +329,72 @@ export function scopeFor(actor: Actor, permission: Permission): Scope {
   }
   return FULL_VISIBILITY_ROLES.has(actor.role) ? "all" : "own";
 }
+
+// ---------------------------------------------------------------------------
+// Store scope (multi-store, migration 0014) -- a SEPARATE axis from
+// `scopeFor('own'|'all')` above. `scopeFor` answers "which rows of MY OWN
+// data (e.g. my own sales) can I see"; `storeScopeFor`/`assertStoreAccess`
+// answer "which STORE(S) am I restricted to", independent of role-based
+// data visibility. Deliberately not merged into one concept: an owner has
+// `scopeFor(... ) === "all"` AND `storeScopeFor() === null` (every store),
+// while a manager-as-gerant has `scopeFor(...) === "all"` (full data
+// visibility among role-permitted permissions) but `storeScopeFor() !==
+// null` (exactly one store) -- conflating the two would either leak a
+// gerant's visibility across stores or wrongly restrict an owner.
+//
+// Mirrors `app_scoped_warehouse_id()` (0014, SECURITY DEFINER SQL helper):
+// same source row (`memberships.warehouse_id`), same NULL-means-all-stores
+// convention. This is the RLS FLOOR's app-layer twin, not a replacement for
+// it -- every store-scoped repository call below is also re-checked by
+// Postgres under RLS; this is the CEILING that turns a would-be cross-store
+// read/write into a ForbiddenError (400-ish) instead of a silent empty
+// result or a raw RLS denial (500-ish) the UI can't explain.
+// ---------------------------------------------------------------------------
+
+// Returns the actor's store scope: `null` = unrestricted (every store in
+// the tenant, e.g. owner or any unscoped member), a warehouse id = pinned
+// to exactly that one store (a "gerant").
+export function storeScopeFor(actor: Actor): string | null {
+  return actor.warehouseId;
+}
+
+// Throws ForbiddenError (fail-closed, same convention as assertCan) if the
+// actor is store-scoped AND the target warehouseId is not their own store.
+// An unscoped actor (storeScopeFor === null) always passes. Every
+// `warehouseId` that arrives from the client -- a POS/stock store selector,
+// a query string, a hidden form field -- MUST pass through this BEFORE it
+// reaches a repository call, exactly like `assertCan` must run before a
+// permission-gated write.
+export function assertStoreAccess(actor: Actor, warehouseId: string): void {
+  const scope = storeScopeFor(actor);
+  if (scope !== null && scope !== warehouseId) {
+    throw new ForbiddenError(
+      `Actor is scoped to a single store and may not act on warehouse "${warehouseId}".`
+    );
+  }
+}
+
+// Combines the actor's OWN store scope with an OPTIONAL client-requested
+// store filter (e.g. a store selector on the dashboard/stock screens) into
+// the single `storeScope: string | null` every store-scoped repository
+// port now requires -- the one place this merge logic lives, so every read
+// use case (dashboard, stock, sales/payments listings) resolves it the same
+// way instead of re-deriving it ad hoc:
+//  - a store-scoped actor (gerant) ALWAYS gets their own store, full stop --
+//    a requested id that differs is rejected via assertStoreAccess rather
+//    than silently ignored (never let a forged selector value widen scope).
+//  - an unscoped actor (owner, or any unscoped role) gets the requested
+//    store if one was explicitly chosen, else `null` (every store) -- this
+//    is what keeps a single-store tenant's screens exactly as simple as
+//    before: no selector is ever rendered, so `requestedWarehouseId` stays
+//    undefined and this just returns `null`.
+export function resolveStoreScope(actor: Actor, requestedWarehouseId?: string | null): string | null {
+  const ownScope = storeScopeFor(actor);
+  if (ownScope !== null) {
+    if (requestedWarehouseId && requestedWarehouseId !== ownScope) {
+      assertStoreAccess(actor, requestedWarehouseId); // always throws here
+    }
+    return ownScope;
+  }
+  return requestedWarehouseId ?? null;
+}

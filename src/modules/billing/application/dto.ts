@@ -21,6 +21,7 @@ export interface PaymentDto {
   id: string;
   saleId: string | null;
   customerId: string | null;
+  warehouseId: string | null;
   amountMinor: MoneyMinorDto;
   currencyCode: string;
   method: string;

@@ -150,6 +150,23 @@ export function TeamListClient({
                     <Icon className="h-3 w-3" aria-hidden="true" />
                     {presentation.label}
                   </Badge>
+                  {/* Multi-store (migration 0014): a "gerant" is a manager
+                      pinned to one store (memberships.warehouse_id). The
+                      real assignment action (assignMemberWarehouseAction)
+                      is fully wired server-side -- disabled here for the
+                      same reason "Inviter" above is: this screen still
+                      renders sample data, not the real membership roster,
+                      see mock-team.ts. */}
+                  {member.role === "manager" && (
+                    <button
+                      type="button"
+                      disabled
+                      title="Bientôt disponible"
+                      className="shrink-0 rounded-md border border-dashed border-border px-2 py-1 text-xs text-muted-foreground"
+                    >
+                      {dict.team.assignStore}
+                    </button>
+                  )}
                 </li>
               );
             })}

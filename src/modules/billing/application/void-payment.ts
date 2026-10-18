@@ -1,4 +1,4 @@
-import { assertCan } from "@/modules/tenancy/permissions";
+import { assertCan, assertStoreAccess } from "@/modules/tenancy/permissions";
 import { requireStepUp } from "@/modules/tenancy/step-up";
 import { getStructureSettings } from "@/modules/tenancy/structure-settings";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
@@ -40,6 +40,17 @@ export async function voidPayment(
   const payment = await repos.paymentRepo.findById(ctx, paymentId);
   if (!payment) {
     throw new PaymentNotFoundError(paymentId);
+  }
+
+  // multi-store: RLS's floor already hides a payment from another store
+  // from a gerant (findById above would have returned null); this is the
+  // app-layer ceiling restated explicitly, same defense-in-depth
+  // discipline as every other store-scoped write in this codebase. A NULL
+  // warehouseId (the documented edge case in db/README entry 2x) is only
+  // ever reachable by an unscoped actor in the first place, so it never
+  // reaches this check for a gerant.
+  if (payment.warehouseId !== null) {
+    assertStoreAccess(ctx.actor, payment.warehouseId);
   }
 
   // H4 fix (security-reviewer, High): `structure_settings.sod_threshold_minor`

@@ -2,6 +2,7 @@ import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { productRepository } from "./infrastructure/product-repository";
 import { customerRepository } from "./infrastructure/customer-repository";
 import { categoryRepository } from "./infrastructure/category-repository";
+import { warehouseRepository } from "./infrastructure/warehouse-repository";
 import * as useCases from "./application";
 import type {
   ListProductsFilter,
@@ -10,6 +11,8 @@ import type {
   CreateCategoryRequest,
   UpdateCategoryRequest,
   AssignProductsToCategoryRequest,
+  ListWarehousesFilter,
+  CreateWarehouseRequest,
 } from "./application";
 
 // ---------------------------------------------------------------------------
@@ -47,11 +50,19 @@ export const catalogService = {
   listCategories: (ctx: TenantSessionContext) => useCases.listCategories(ctx, categoryRepository),
   assignProductsToCategory: (ctx: TenantSessionContext, input: AssignProductsToCategoryRequest) =>
     useCases.assignProductsToCategory(ctx, input, productRepository, categoryRepository),
+  // --- warehouses ("Magasins") ---
+  listWarehouses: (ctx: TenantSessionContext, filter: ListWarehousesFilter = {}) =>
+    useCases.listWarehouses(ctx, filter, warehouseRepository),
+  createWarehouse: (ctx: TenantSessionContext, input: CreateWarehouseRequest) =>
+    useCases.createWarehouse(ctx, input, warehouseRepository),
+  archiveWarehouse: (ctx: TenantSessionContext, warehouseId: string) =>
+    useCases.archiveWarehouse(ctx, warehouseId, warehouseRepository),
 };
 
 export type {
   ProductDto,
   CategoryDto,
+  WarehouseDto,
   ListProductsFilter,
   CreateProductRequest,
   UpdateProductRequest,
@@ -59,6 +70,8 @@ export type {
   UpdateCategoryRequest,
   AssignProductsToCategoryRequest,
   AssignProductsToCategoryResult,
+  ListWarehousesFilter,
+  CreateWarehouseRequest,
 } from "./application";
 export {
   DuplicateSkuError,
@@ -69,4 +82,7 @@ export {
   DuplicateCategoryNameError,
   CategoryCycleError,
   CategoryHasDependentsError,
+  DuplicateWarehouseCodeError,
+  WarehouseNotFoundError,
+  InvalidWarehouseInputError,
 } from "./domain/errors";

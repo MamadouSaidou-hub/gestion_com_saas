@@ -80,36 +80,66 @@ export interface LowStockRow {
   lowStockThreshold: string;
 }
 
+// multi-store (migration 0014): every query below now takes a REQUIRED
+// `storeScope: string | null` -- `null` means "every store the actor can
+// see" (an owner's unscoped dashboard, unchanged from before this
+// migration), a warehouse id restricts the aggregate to exactly that
+// store (a gerant's own store, floored by RLS too since `sales`/`payments`
+// both carry the store-scope predicate since 0014; or an owner's explicit
+// selector choice). Making it required (not optional) is the same
+// discipline as every other `scope`/`storeScope` parameter in this
+// codebase -- omitting it is a compile error, not a silent "all stores"
+// leak into a gerant's own dashboard.
 export interface AnalyticsRepository {
   // CA brut: confirmed_at in window, ANY current status (a sale later
   // cancelled still counts toward brut). CA net: same window, status =
   // 'confirmed' only.
-  getSalesWindowTotals(ctx: TenantSessionContext, window: WindowArgs): Promise<SalesWindowTotals>;
+  getSalesWindowTotals(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<SalesWindowTotals>;
 
   // Encaissé: payments.received_at in window, voided_at IS NULL --
   // independent of which window the underlying sale belongs to.
-  getEncaisse(ctx: TenantSessionContext, window: EncaisseWindowArgs): Promise<bigint>;
+  getEncaisse(
+    ctx: TenantSessionContext,
+    window: EncaisseWindowArgs,
+    storeScope: string | null
+  ): Promise<bigint>;
 
-  getEncaisseByMethod(ctx: TenantSessionContext, window: EncaisseWindowArgs): Promise<MethodAmount[]>;
+  getEncaisseByMethod(
+    ctx: TenantSessionContext,
+    window: EncaisseWindowArgs,
+    storeScope: string | null
+  ): Promise<MethodAmount[]>;
 
   // All products with at least one confirmed sale_line in the window,
   // unsorted/unlimited -- the application layer picks top-5-by-revenue and
   // top-5-by-quantity from the SAME result set (small data volume at this
   // scale; avoids two different queries with different ORDER BY/LIMIT).
-  getTopProductsRaw(ctx: TenantSessionContext, window: WindowArgs): Promise<TopProductRow[]>;
+  getTopProductsRaw(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<TopProductRow[]>;
 
-  getMarginTotals(ctx: TenantSessionContext, window: WindowArgs): Promise<MarginTotals>;
+  getMarginTotals(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<MarginTotals>;
 
-  getSellerBreakdown(ctx: TenantSessionContext, window: WindowArgs): Promise<SellerRow[]>;
+  getSellerBreakdown(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<SellerRow[]>;
 
   getOwnSalesSummary(
     ctx: TenantSessionContext,
     userId: string,
-    window: WindowArgs
+    window: WindowArgs,
+    storeScope: string | null
   ): Promise<OwnSalesSummary>;
-
-  // Low-stock alerts need the structure's default warehouse id --
-  // resolved here (read-only) rather than hardcoding "single warehouse in
-  // v1" into the use case.
-  getDefaultWarehouseId(ctx: TenantSessionContext): Promise<string | null>;
 }

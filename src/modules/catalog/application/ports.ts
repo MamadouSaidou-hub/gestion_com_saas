@@ -96,6 +96,49 @@ export interface CategoryRepository {
   countChildren(ctx: TenantSessionContext, categoryId: string): Promise<number>;
 }
 
+// ---------------------------------------------------------------------------
+// Warehouse ("Magasin") repository port -- migration 0014. Owner-gated
+// create/archive (enforced in the use cases, not here); list is available
+// to anyone with `warehouse:write` OR who simply needs the catalog for a
+// store selector (list-warehouses.ts gates on `stock:read` instead, see
+// its own comment).
+// ---------------------------------------------------------------------------
+
+export type WarehouseKind = "store" | "depot";
+
+export interface WarehouseRecord {
+  id: string;
+  code: string;
+  name: string;
+  kind: WarehouseKind;
+  isDefault: boolean;
+  isActive: boolean;
+  address: string | null;
+  phone: string | null;
+  createdAt: Date;
+}
+
+export interface CreateWarehouseInput {
+  code: string;
+  name: string;
+  kind: WarehouseKind;
+  address?: string | null;
+  phone?: string | null;
+}
+
+export interface ListWarehousesFilter {
+  activeOnly?: boolean;
+  kind?: WarehouseKind;
+}
+
+export interface WarehouseRepository {
+  findById(ctx: TenantSessionContext, warehouseId: string): Promise<WarehouseRecord | null>;
+  findByCode(ctx: TenantSessionContext, code: string): Promise<WarehouseRecord | null>;
+  list(ctx: TenantSessionContext, filter: ListWarehousesFilter): Promise<WarehouseRecord[]>;
+  insert(ctx: TenantSessionContext, input: CreateWarehouseInput): Promise<WarehouseRecord>;
+  setActive(ctx: TenantSessionContext, warehouseId: string, isActive: boolean): Promise<WarehouseRecord>;
+}
+
 export interface CustomerRecord {
   id: string;
   name: string;

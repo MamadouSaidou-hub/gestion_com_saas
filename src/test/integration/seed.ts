@@ -34,9 +34,11 @@ export async function seedStructure(): Promise<StructureFixture> {
       ) as id
     `;
 
+    // migration 0014: `code`/`kind` are now NOT NULL on `warehouses`.
+    // `kind` defaults to 'store' at the DB level, so it's omitted here.
     const [{ id: warehouseId }] = await sql`
-      insert into warehouses (structure_id, name, is_default)
-      values (${structureId}, 'Entrepot principal', true)
+      insert into warehouses (structure_id, name, is_default, code)
+      values (${structureId}, 'Entrepot principal', true, 'principal')
       returning id
     `;
     const [{ id: unitId }] = await sql`
@@ -65,16 +67,37 @@ export async function seedStructure(): Promise<StructureFixture> {
 export async function addMembership(
   fixture: StructureFixture,
   role: string,
-  userId?: string
+  userId?: string,
+  warehouseId?: string | null
 ): Promise<string> {
   const sql = postgres(MIGRATOR_URL, { max: 1 });
   try {
     const actualUserId = userId ?? `test-${role}-${randomUUID()}`;
     await sql`
-      insert into memberships (user_id, structure_id, role, status)
-      values (${actualUserId}, ${fixture.structureId}, ${role}, 'active')
+      insert into memberships (user_id, structure_id, role, status, warehouse_id)
+      values (${actualUserId}, ${fixture.structureId}, ${role}, 'active', ${warehouseId ?? null})
     `;
     return actualUserId;
+  } finally {
+    await sql.end();
+  }
+}
+
+// multi-store (migration 0014) test helper -- adds a SECOND (or Nth) store
+// to the fixture's structure, migrator-role (BYPASSRLS), same convention
+// as every other seed helper in this file.
+export async function addWarehouse(
+  fixture: StructureFixture,
+  options: { code: string; name: string; kind?: "store" | "depot" }
+): Promise<string> {
+  const sql = postgres(MIGRATOR_URL, { max: 1 });
+  try {
+    const [{ id }] = await sql`
+      insert into warehouses (structure_id, name, is_default, code, kind)
+      values (${fixture.structureId}, ${options.name}, false, ${options.code}, ${options.kind ?? "store"})
+      returning id
+    `;
+    return id;
   } finally {
     await sql.end();
   }

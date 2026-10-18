@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { stockLevels, stockMovements } from "@/db/schema/inventory";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { Quantity } from "../domain/quantity";
@@ -78,6 +78,35 @@ export const stockRepository: StockRepository = {
     return rows.map(levelToDomain);
   },
 
+  async lockLevelsForUpdateAcrossWarehouses(
+    ctx: TenantSessionContext,
+    pairs: ProductWarehousePair[]
+  ): Promise<StockLevelRecord[]> {
+    if (pairs.length === 0) {
+      return [];
+    }
+    // Deterministic cross-call ordering: (warehouse_id, product_id) --
+    // see the port's doc comment (db/README entry 2x). Built with `or(and(
+    // ...))` rather than two separate `inArray` columns because a plain
+    // "warehouse_id IN (...) AND product_id IN (...)" would lock the FULL
+    // cross-product of both lists, not just the exact pairs requested.
+    const sortedPairs = [...pairs].sort((a, b) =>
+      a.warehouseId === b.warehouseId
+        ? a.productId.localeCompare(b.productId)
+        : a.warehouseId.localeCompare(b.warehouseId)
+    );
+    const pairConditions = sortedPairs.map((pair) =>
+      and(eq(stockLevels.warehouseId, pair.warehouseId), eq(stockLevels.productId, pair.productId))
+    );
+    const rows = await ctx.db
+      .select()
+      .from(stockLevels)
+      .where(and(eq(stockLevels.structureId, ctx.actor.structureId), or(...pairConditions)))
+      .orderBy(asc(stockLevels.warehouseId), asc(stockLevels.productId))
+      .for("update");
+    return rows.map(levelToDomain);
+  },
+
   async getLevel(
     ctx: TenantSessionContext,
     productId: string,
@@ -153,11 +182,22 @@ export const stockRepository: StockRepository = {
         unitCostMinor: input.unitCostMinor,
         currencyCode: input.currencyCode,
         reason: input.reason,
-        // `stock_movements_source_consistency_chk` (migration 0009)
-        // requires `source_type = 'sale'` exactly when `sale_id` is set,
-        // and NULL sale_id otherwise -- set both together, never one
-        // without the other.
-        sourceType: input.saleId ? "sale" : null,
+        // migration 0014 rewrote the polymorphic-source consistency check
+        // into a true exclusive arc (`stock_movements_exclusive_arc_chk`):
+        // EXACTLY one of (sale_id, transfer_id, stock_count_id,
+        // supplier_delivery_id, source_type) may be non-null -- unlike the
+        // 0009-era check, leaving ALL FIVE null (what a non-sale movement
+        // used to do) now fails too (num_nonnulls(...) = 0, not 1).
+        // `source_type` itself is also narrowed to ('manual', 'adjustment',
+        // 'opening') -- 'sale' is NOT a valid value anymore, a sale
+        // movement is represented ONLY by `sale_id` with `source_type`
+        // staying NULL. For the source-less callers (adjustStock,
+        // receiveStock/reverseStockOut), `source_type` must now be set:
+        // `adjustStock` prefixes its own `reason` with "adjustment:" (see
+        // adjust-stock.ts) -- recognized here to preserve that distinction
+        // in the ledger; every other non-sale caller gets the generic
+        // 'manual' value.
+        sourceType: input.saleId ? null : input.reason.startsWith("adjustment:") ? "adjustment" : "manual",
         saleId: input.saleId ?? null,
         createdBy: ctx.actor.userId,
       })
@@ -185,11 +225,16 @@ export const stockRepository: StockRepository = {
     return rows.map(movementToDomain);
   },
 
-  async listDistinctProductWarehousePairs(ctx: TenantSessionContext): Promise<ProductWarehousePair[]> {
+  async listDistinctProductWarehousePairs(
+    ctx: TenantSessionContext,
+    warehouseId?: string | null
+  ): Promise<ProductWarehousePair[]> {
+    const warehouseFilter = warehouseId ? sql`and warehouse_id = ${warehouseId}` : sql``;
     const rows = await ctx.db.execute<{ product_id: string; warehouse_id: string }>(sql`
       select distinct product_id, warehouse_id
       from stock_movements
       where structure_id = ${ctx.actor.structureId}
+      ${warehouseFilter}
     `);
     return rows.map((r) => ({ productId: r.product_id, warehouseId: r.warehouse_id }));
   },
