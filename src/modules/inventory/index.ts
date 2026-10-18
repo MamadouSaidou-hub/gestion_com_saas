@@ -4,6 +4,7 @@ import * as useCases from "./application";
 import type { ReceiveStockInput, AdjustStockInput, ApplyStockOutInput, ReverseStockOutInput } from "./application";
 import type { ListLevelsFilter, ListMovementsFilter } from "./application";
 import type { ApplyTransferOutInput, ApplyTransferInInput, ApplyStockCountAdjustmentInput } from "./application";
+import type { ApplyDeliveryInInput } from "./application";
 
 // ---------------------------------------------------------------------------
 // inventory/index.ts -- the ONLY surface another module is allowed to
@@ -56,6 +57,10 @@ export const inventoryService = {
     useCases.applyTransferIn(ctx, input, stockRepository),
   applyStockCountAdjustment: (ctx: TenantSessionContext, input: ApplyStockCountAdjustmentInput) =>
     useCases.applyStockCountAdjustment(ctx, input, stockRepository),
+  // Purchasing module's own "in" leg -- see apply-delivery-in.ts's header
+  // comment. Cross-module convention, same as applyTransferOut/In.
+  applyDeliveryIn: (ctx: TenantSessionContext, input: ApplyDeliveryInInput) =>
+    useCases.applyDeliveryIn(ctx, input, stockRepository),
 };
 
 export { Quantity, InvalidQuantityError } from "./domain/quantity";
@@ -80,4 +85,6 @@ export type {
   ApplyStockCountAdjustmentInput,
   StockCountAdjustmentResult,
   StockCountVarianceLine,
+  ApplyDeliveryInInput,
+  DeliveryInLine,
 } from "./application";

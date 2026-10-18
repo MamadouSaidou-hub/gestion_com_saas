@@ -98,6 +98,22 @@ export class Quantity {
     return this.scaled === other.scaled;
   }
 
+  // Fixed-point quantity x unit-minor-amount -> minor-unit bigint, rounded
+  // HALF UP (never banker's rounding, never float) -- used by purchasing
+  // (line_total_minor = quantity x unit_cost_minor) and rebates
+  // (total_rebate_minor = counted_qty x rebate_per_unit_minor). `this.scaled`
+  // is quantity x SCALE, so `this.scaled * unitMinor` is quantity x unitMinor
+  // x SCALE; dividing back by SCALE with a pre-added half-scale numerator
+  // rounds half up without ever going through a float.
+  multiplyToMinor(unitMinor: bigint): bigint {
+    const numerator = this.scaled * unitMinor;
+    const half = SCALE / 2n;
+    if (numerator >= 0n) {
+      return (numerator + half) / SCALE;
+    }
+    return -((-numerator + half) / SCALE);
+  }
+
   // Internal-ish accessor for pure-domain functions (e.g. CUMP valuation)
   // that need the scaled bigint directly, without re-parsing a string.
   // Deliberately on the instance rather than a free function, so a caller

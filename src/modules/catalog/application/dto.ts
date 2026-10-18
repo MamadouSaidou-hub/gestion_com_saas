@@ -65,3 +65,14 @@ export interface CustomerDto {
   notes: string | null;
   createdAt: string; // ISO 8601
 }
+
+// Transport-safe supplier shape. `phone` is E.164, clear text, tenant-scoped
+// (D7) -- never put this DTO's `phone`/`email` into an audit payload (the
+// PII guard throws on those key names by design).
+export interface SupplierDto {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  createdAt: string; // ISO 8601
+}

@@ -23,7 +23,10 @@ export {
   type AssignProductsToCategoryRequest,
   type AssignProductsToCategoryResult,
 } from "./assign-products-to-category";
-export type { ProductDto, CategoryDto, WarehouseDto, CustomerDto } from "./dto";
+export { createSupplier, type CreateSupplierRequest } from "./create-supplier";
+export { listSuppliers } from "./list-suppliers";
+export { getSupplier } from "./get-supplier";
+export type { ProductDto, CategoryDto, WarehouseDto, CustomerDto, SupplierDto } from "./dto";
 export type {
   ProductRepository,
   ListProductsFilter,
@@ -36,4 +39,7 @@ export type {
   WarehouseRecord,
   ListWarehousesFilter,
   WarehouseKind,
+  SupplierRepository,
+  SupplierRecord,
+  ListSuppliersFilter,
 } from "./ports";

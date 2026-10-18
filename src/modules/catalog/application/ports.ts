@@ -190,3 +190,45 @@ export interface CustomerRepository {
   insert(ctx: TenantSessionContext, input: InsertCustomerInput): Promise<CustomerRecord>;
   update(ctx: TenantSessionContext, customerId: string, input: UpdateCustomerInput): Promise<CustomerRecord>;
 }
+
+// ---------------------------------------------------------------------------
+// Supplier repository port -- `suppliers` (migration 0003) existed in the
+// schema before the purchasing module (0015), but no application layer
+// read/wrote it: the `/fournisseurs` screen used sample data
+// (mock-suppliers.ts). This is the minimal CRUD the real screen needs;
+// purchasing's own module (supplier_deliveries/supplier_payments) reaches
+// suppliers ONLY through catalogService.getSupplier/listSuppliers, never by
+// importing @/db/schema/catalog directly (cross-module ESLint boundary).
+// ---------------------------------------------------------------------------
+
+export interface SupplierRecord {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  createdAt: Date;
+}
+
+export interface InsertSupplierInput {
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface UpdateSupplierInput {
+  name?: string;
+  phone?: string | null;
+  email?: string | null;
+}
+
+export interface ListSuppliersFilter {
+  search?: string;
+}
+
+export interface SupplierRepository {
+  findById(ctx: TenantSessionContext, supplierId: string): Promise<SupplierRecord | null>;
+  findByName(ctx: TenantSessionContext, name: string): Promise<SupplierRecord | null>;
+  list(ctx: TenantSessionContext, filter: ListSuppliersFilter): Promise<SupplierRecord[]>;
+  insert(ctx: TenantSessionContext, input: InsertSupplierInput): Promise<SupplierRecord>;
+  update(ctx: TenantSessionContext, supplierId: string, input: UpdateSupplierInput): Promise<SupplierRecord>;
+}

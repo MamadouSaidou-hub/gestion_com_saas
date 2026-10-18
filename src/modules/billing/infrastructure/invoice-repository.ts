@@ -1,6 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { invoices } from "@/db/schema/billing";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
+import { applyAtomicBoundedDelta } from "@/platform/money/atomic-delta";
 import type {
   InvoiceRepository,
   InvoiceRecord,
@@ -26,6 +27,44 @@ function toDomain(row: InvoiceRow): InvoiceRecord {
     issuedAt: row.issuedAt,
     dueAt: row.dueAt,
     createdBy: row.createdBy,
+  };
+}
+
+// `applyAtomicBoundedDelta` goes through `ctx.db.execute(sql\`...\`)`
+// ("returning *"), which -- unlike drizzle's own query builder -- returns
+// the DRIVER's raw column names (snake_case), not drizzle's camelCase
+// mapping. This small shape + mapper is the one place that translates back,
+// kept local to this repository (the generic primitive itself stays
+// table-agnostic).
+interface RawInvoiceRow {
+  id: string;
+  sale_id: string | null;
+  customer_id: string | null;
+  doc_number: string;
+  fiscal_year: number;
+  currency_code: string;
+  total_minor: bigint;
+  paid_minor: bigint;
+  status: InvoiceRow["status"];
+  issued_at: Date | null;
+  due_at: Date | null;
+  created_by: string;
+}
+
+function toDomainFromRaw(row: RawInvoiceRow): InvoiceRecord {
+  return {
+    id: row.id,
+    saleId: row.sale_id,
+    customerId: row.customer_id,
+    docNumber: row.doc_number,
+    fiscalYear: row.fiscal_year,
+    currencyCode: row.currency_code,
+    totalMinor: row.total_minor,
+    paidMinor: row.paid_minor,
+    status: row.status,
+    issuedAt: row.issued_at,
+    dueAt: row.due_at,
+    createdBy: row.created_by,
   };
 }
 
@@ -106,29 +145,26 @@ export const invoiceRepository: InvoiceRepository = {
     invoiceId: string,
     delta: InvoicePaymentProgressDelta
   ): Promise<InvoiceRecord | null> {
-    // C1 fix: same atomic increment + bounds-check pattern as
-    // sales-repository.ts's updatePaymentProgress -- see that file's
-    // comment for why this is what prevents a lost update between two
-    // concurrent payments/voids against the same invoice.
-    const rows = await ctx.db
-      .update(invoices)
-      .set({
-        paidMinor: sql`${invoices.paidMinor} + ${delta.deltaMinor}`,
+    // C1 fix, now on the SHARED primitive (src/platform/money/atomic-delta.ts)
+    // -- same atomic increment + bounds-check pattern purchasing's
+    // supplier_deliveries.paid_minor runs through, so the two sides
+    // provably share the fix instead of carrying two independently
+    // drifting copies of it.
+    const row = await applyAtomicBoundedDelta<RawInvoiceRow>(ctx, {
+      table: "invoices",
+      id: invoiceId,
+      deltaColumn: "paid_minor",
+      deltaMinor: delta.deltaMinor,
+      ceilingColumn: "total_minor",
+      extraSet: {
         status: sql`(case
-          when ${invoices.paidMinor} + ${delta.deltaMinor} = 0 then 'issued'
-          when ${invoices.paidMinor} + ${delta.deltaMinor} = ${invoices.totalMinor} then 'paid'
+          when paid_minor + ${delta.deltaMinor} = 0 then 'issued'
+          when paid_minor + ${delta.deltaMinor} = total_minor then 'paid'
           else 'partially_paid'
         end)::invoice_status`,
-      })
-      .where(
-        and(
-          eq(invoices.structureId, ctx.actor.structureId),
-          eq(invoices.id, invoiceId),
-          sql`${invoices.paidMinor} + ${delta.deltaMinor} between 0 and ${invoices.totalMinor}`
-        )
-      )
-      .returning();
-    return rows[0] ? toDomain(rows[0]) : null;
+      },
+    });
+    return row ? toDomainFromRaw(row) : null;
   },
 
   async listSaleIdsWithInvoice(ctx: TenantSessionContext): Promise<string[]> {

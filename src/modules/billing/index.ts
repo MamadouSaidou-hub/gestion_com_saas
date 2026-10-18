@@ -25,6 +25,8 @@ export const billingService = {
     useCases.allocateTicketNumber(ctx, fiscalYear, documentCounterRepository),
   allocateTransferReference: (ctx: TenantSessionContext, fiscalYear: number) =>
     useCases.allocateTransferReference(ctx, fiscalYear, documentCounterRepository),
+  allocateDeliveryReference: (ctx: TenantSessionContext, fiscalYear: number) =>
+    useCases.allocateDeliveryReference(ctx, fiscalYear, documentCounterRepository),
   recordSalePayment: (ctx: TenantSessionContext, input: InsertSalePaymentInput) =>
     useCases.recordSalePayment(ctx, input, paymentRepository),
 

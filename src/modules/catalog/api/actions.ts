@@ -17,8 +17,15 @@ import {
   InvalidWarehouseInputError,
   CustomerNotFoundError,
   InvalidCustomerInputError,
+  InvalidSupplierInputError,
 } from "../index";
-import type { CategoryDto, AssignProductsToCategoryResult, WarehouseDto, CustomerDto } from "../index";
+import type {
+  CategoryDto,
+  AssignProductsToCategoryResult,
+  WarehouseDto,
+  CustomerDto,
+  SupplierDto,
+} from "../index";
 
 // ---------------------------------------------------------------------------
 // Thin Server Actions for the catalog module -- NOT wired to any screen yet
@@ -494,5 +501,55 @@ export async function updateCustomerAction(
       return { ok: false, code: "INVALID_INPUT", message: err.message };
     }
     return { ok: false, code: "UNKNOWN", message: "Impossible de modifier ce client." };
+  }
+}
+
+// --- suppliers ("Fournisseurs") ---
+
+const supplierFormSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{6,15}$/)
+    .nullable()
+    .optional(),
+  email: z.string().trim().email().nullable().optional(),
+});
+
+export type SupplierActionErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "INVALID_INPUT" | "UNKNOWN";
+
+export type SupplierActionResult =
+  | { ok: true; supplier: SupplierDto }
+  | { ok: false; code: SupplierActionErrorCode; message: string };
+
+export async function listSuppliersAction(structureId: string, search?: string): Promise<SupplierDto[]> {
+  const session = await getSession();
+  if (!session) return [];
+  const actor = await resolveActor(session, structureId);
+  return withTenantSession(actor, (ctx) => catalogService.listSuppliers(ctx, { search }));
+}
+
+export async function createSupplierAction(
+  structureId: string,
+  input: unknown
+): Promise<SupplierActionResult> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { ok: false, code: "UNAUTHENTICATED", message: "Session expirée." };
+    }
+    const actor = await resolveActor(session, structureId);
+    const parsed = supplierFormSchema.parse(input);
+    const supplier = await withTenantSession(actor, (ctx) => catalogService.createSupplier(ctx, parsed));
+    return { ok: true, supplier };
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return { ok: false, code: "FORBIDDEN", message: "Action non autorisée pour votre rôle." };
+    }
+    if (err instanceof InvalidSupplierInputError) {
+      return { ok: false, code: "INVALID_INPUT", message: err.message };
+    }
+    return { ok: false, code: "UNKNOWN", message: "Impossible de créer ce fournisseur." };
   }
 }

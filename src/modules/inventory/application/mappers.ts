@@ -26,6 +26,7 @@ export function toMovementDto(record: StockMovementRecord): StockMovementDto {
     saleId: record.saleId,
     transferId: record.transferId,
     stockCountId: record.stockCountId,
+    supplierDeliveryId: record.supplierDeliveryId,
     occurredAt: record.occurredAt.toISOString(),
     createdBy: record.createdBy,
   };

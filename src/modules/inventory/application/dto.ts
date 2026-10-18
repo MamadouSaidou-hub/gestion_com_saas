@@ -28,6 +28,7 @@ export interface StockMovementDto {
   saleId: string | null;
   transferId: string | null;
   stockCountId: string | null;
+  supplierDeliveryId: string | null;
   occurredAt: string;
   createdBy: string;
 }

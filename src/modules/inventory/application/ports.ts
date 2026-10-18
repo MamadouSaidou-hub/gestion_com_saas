@@ -34,6 +34,11 @@ export interface StockMovementRecord {
   // setting exactly one of these per insertMovement call.
   transferId: string | null;
   stockCountId: string | null;
+  // Purchasing module (migration 0015's composite-FK column, activated by
+  // that migration -- 0014 added the column ahead of time, see db/README
+  // entry 2r/2y). Mutually exclusive with every other arc at the DB level
+  // (stock_movements_exclusive_arc_chk).
+  supplierDeliveryId: string | null;
   occurredAt: Date;
   createdBy: string;
 }
@@ -51,6 +56,8 @@ export interface InsertMovementInput {
   // never together with saleId) -- see stock_movements_exclusive_arc_chk.
   transferId?: string | null;
   stockCountId?: string | null;
+  // Purchasing module's own arc -- see StockMovementRecord.supplierDeliveryId.
+  supplierDeliveryId?: string | null;
 }
 
 export interface UpsertLevelInput {

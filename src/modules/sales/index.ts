@@ -45,6 +45,14 @@ export const salesService = {
     salesRepository.listCustomerIdsForStore(ctx, warehouseId),
   findWarehouseIdsForSaleIds: (ctx: TenantSessionContext, saleIds: string[]) =>
     salesRepository.findWarehouseIdsForSaleIds(ctx, saleIds),
+  // Rebates' customer-side monthly read dependency -- see ports.ts's
+  // comment on sumConfirmedQuantityForCustomerInWindow.
+  sumConfirmedQuantityForCustomerInWindow: (
+    ctx: TenantSessionContext,
+    customerId: string,
+    windowStart: Date,
+    windowEnd: Date
+  ) => salesRepository.sumConfirmedQuantityForCustomerInWindow(ctx, customerId, windowStart, windowEnd),
 };
 
 export type {

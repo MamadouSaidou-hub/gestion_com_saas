@@ -48,6 +48,7 @@ function movementToDomain(row: StockMovementRow): StockMovementRecord {
     saleId: row.saleId,
     transferId: row.transferId,
     stockCountId: row.stockCountId,
+    supplierDeliveryId: row.supplierDeliveryId,
     occurredAt: row.occurredAt,
     createdBy: row.createdBy,
   };
@@ -204,7 +205,7 @@ export const stockRepository: StockRepository = {
         // means sourceType MUST stay null (exactly one of the five arcs,
         // re-checked by the DB's own stock_movements_exclusive_arc_chk).
         sourceType:
-          input.saleId || input.transferId || input.stockCountId
+          input.saleId || input.transferId || input.stockCountId || input.supplierDeliveryId
             ? null
             : input.reason.startsWith("adjustment:")
               ? "adjustment"
@@ -212,6 +213,7 @@ export const stockRepository: StockRepository = {
         saleId: input.saleId ?? null,
         transferId: input.transferId ?? null,
         stockCountId: input.stockCountId ?? null,
+        supplierDeliveryId: input.supplierDeliveryId ?? null,
         createdBy: ctx.actor.userId,
       })
       .returning();

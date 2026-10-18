@@ -320,6 +320,92 @@
           }
         ]
       }
+    },
+
+    {
+      "files": ["src/modules/purchasing/domain/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*", "@/modules/rebates/domain/*", "@/modules/rebates/infrastructure/*"], "message": "Cross-module boundary: purchasing may only reach another business module through its public index.ts surface." },
+              { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only purchasing/infrastructure/ may import @/db/schema/*." },
+              { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/modules/purchasing/application/**/*.ts", "src/modules/purchasing/api/**/*.ts", "src/modules/purchasing/index.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*", "@/modules/rebates/domain/*", "@/modules/rebates/infrastructure/*"], "message": "Cross-module boundary: purchasing may only reach another business module through its public index.ts surface." },
+              { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only purchasing/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/modules/purchasing/infrastructure/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*", "@/modules/rebates/domain/*", "@/modules/rebates/infrastructure/*"], "message": "Cross-module boundary: purchasing may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "files": ["src/modules/rebates/domain/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*", "@/modules/purchasing/domain/*", "@/modules/purchasing/infrastructure/*"], "message": "Cross-module boundary: rebates may only reach another business module through its public index.ts surface." },
+              { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: domain/ must stay drizzle-free -- only rebates/infrastructure/ may import @/db/schema/*." },
+              { "group": ["drizzle-orm", "drizzle-orm/*", "next", "next/*"], "message": "domain/ must be pure TS -- no drizzle, no Next imports (CLAUDE.md Phase 1 step 1)." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/modules/rebates/application/**/*.ts", "src/modules/rebates/api/**/*.ts", "src/modules/rebates/index.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*", "@/modules/purchasing/domain/*", "@/modules/purchasing/infrastructure/*"], "message": "Cross-module boundary: rebates may only reach another business module through its public index.ts surface." },
+              { "group": ["@/db/schema/*", "@/db/schema"], "message": "Layering boundary: only rebates/infrastructure/ may import @/db/schema/* -- application/api/index must talk to repository PORTS instead." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/modules/rebates/infrastructure/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              { "group": ["@/modules/stock-transfers/domain/*", "@/modules/stock-transfers/infrastructure/*", "@/modules/catalog/domain/*", "@/modules/catalog/infrastructure/*", "@/modules/inventory/domain/*", "@/modules/inventory/infrastructure/*", "@/modules/sales/domain/*", "@/modules/sales/infrastructure/*", "@/modules/billing/domain/*", "@/modules/billing/infrastructure/*", "@/modules/analytics/domain/*", "@/modules/analytics/infrastructure/*", "@/modules/purchasing/domain/*", "@/modules/purchasing/infrastructure/*"], "message": "Cross-module boundary: rebates may only reach another business module through its public index.ts surface -- even from infrastructure/." }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

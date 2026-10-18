@@ -1,4 +1,5 @@
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
+import type { Quantity } from "@/modules/inventory";
 
 export type SaleStatus = "draft" | "confirmed" | "cancelled";
 export type SalePaymentStatus = "unpaid" | "partial" | "paid";
@@ -162,6 +163,18 @@ export interface SalesRepository {
     ctx: TenantSessionContext,
     saleIds: string[]
   ): Promise<Record<string, string>>;
+
+  // Rebates' customer-side monthly read dependency -- Σ sale_lines.quantity
+  // for CONFIRMED, non-cancelled sales of this customer with
+  // confirmed_at in [windowStart, windowEnd). Exposed here (not read
+  // directly by the rebates module -- no cross-module schema import, see
+  // sales/index.ts).
+  sumConfirmedQuantityForCustomerInWindow(
+    ctx: TenantSessionContext,
+    customerId: string,
+    windowStart: Date,
+    windowEnd: Date
+  ): Promise<Quantity>;
 
   listLines(ctx: TenantSessionContext, saleId: string): Promise<SaleLineRecord[]>;
 

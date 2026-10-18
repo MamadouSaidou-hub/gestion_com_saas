@@ -108,7 +108,7 @@ export const GESTION_NAV: NavItemDef[] = [
     href: (id) => `/s/${id}/fournisseurs`,
     label: dict.nav.suppliers,
     icon: Truck,
-    comingSoon: true,
+    permissions: ["supplier:read"],
   },
   {
     key: "invoices",

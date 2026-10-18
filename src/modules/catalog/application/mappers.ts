@@ -1,8 +1,8 @@
 import { moneyToDto } from "@/platform/dto/money";
 import type { Product } from "../domain/product";
 import type { Category } from "../domain/category";
-import type { ProductDto, CategoryDto, WarehouseDto, CustomerDto } from "./dto";
-import type { WarehouseRecord, CustomerRecord } from "./ports";
+import type { ProductDto, CategoryDto, WarehouseDto, CustomerDto, SupplierDto } from "./dto";
+import type { WarehouseRecord, CustomerRecord, SupplierRecord } from "./ports";
 
 export function toProductDto(product: Product): ProductDto {
   return {
@@ -47,6 +47,16 @@ export function toCustomerDto(customer: CustomerRecord): CustomerDto {
     address: customer.address,
     notes: customer.notes,
     createdAt: customer.createdAt.toISOString(),
+  };
+}
+
+export function toSupplierDto(supplier: SupplierRecord): SupplierDto {
+  return {
+    id: supplier.id,
+    name: supplier.name,
+    phone: supplier.phone,
+    email: supplier.email,
+    createdAt: supplier.createdAt.toISOString(),
   };
 }
 

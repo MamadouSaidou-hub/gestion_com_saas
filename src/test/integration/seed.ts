@@ -252,6 +252,28 @@ export async function cancelSaleDirect(fixture: StructureFixture, saleId: string
   }
 }
 
+// Purchasing/rebates test fixtures -- migrator-role direct insert, same
+// convention as createProduct/addMembership (not going through
+// catalogService.createSupplier, which already has its own coverage path
+// via the use case itself; this suite's job is purchasing/rebates, not
+// re-validating createSupplier).
+export async function createSupplier(
+  fixture: StructureFixture,
+  options: { name: string }
+): Promise<string> {
+  const sql = postgres(MIGRATOR_URL, { max: 1 });
+  try {
+    const [{ id }] = await sql`
+      insert into suppliers (structure_id, name)
+      values (${fixture.structureId}, ${options.name})
+      returning id
+    `;
+    return id;
+  } finally {
+    await sql.end();
+  }
+}
+
 export async function setVatRate(fixture: StructureFixture, vatRate: string): Promise<void> {
   const sql = postgres(MIGRATOR_URL, { max: 1 });
   try {

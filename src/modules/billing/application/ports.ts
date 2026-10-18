@@ -22,7 +22,11 @@ export interface DocumentCounterRepository {
     // db/README entry 2x) -- stock_transfers.reference is allocated via the
     // SAME gapless document_counters mechanism as tickets/invoices, its own
     // independent (structure, docType='transfer', fiscalYear) sequence.
-    docType: "ticket" | "invoice" | "quote" | "credit_note" | "delivery_note" | "transfer",
+    // "delivery" added this phase (migration 0015's ALTER TYPE -- see
+    // db/README entry 2y) -- supplier_deliveries.reference is allocated via
+    // this SAME gapless mechanism, its own independent
+    // (structure, docType='delivery', fiscalYear) sequence.
+    docType: "ticket" | "invoice" | "quote" | "credit_note" | "delivery_note" | "transfer" | "delivery",
     fiscalYear: number
   ): Promise<bigint>;
 }

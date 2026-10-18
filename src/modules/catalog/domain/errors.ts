@@ -94,6 +94,22 @@ export class InvalidCustomerInputError extends Error {
   }
 }
 
+// --- suppliers (purchasing module's read dependency) ---
+
+export class SupplierNotFoundError extends Error {
+  constructor(supplierId: string) {
+    super(`Supplier "${supplierId}" was not found.`);
+    this.name = "SupplierNotFoundError";
+  }
+}
+
+export class InvalidSupplierInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidSupplierInputError";
+  }
+}
+
 // Blocks deletion rather than silently nulling out references -- see
 // delete-category.ts for the rationale.
 export class CategoryHasDependentsError extends Error {

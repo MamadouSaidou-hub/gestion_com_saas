@@ -14,6 +14,7 @@ export {
   type TransferOutLine,
 } from "./apply-transfer-out";
 export { applyTransferIn, type ApplyTransferInInput, type TransferInLine } from "./apply-transfer-in";
+export { applyDeliveryIn, type ApplyDeliveryInInput, type DeliveryInLine } from "./apply-delivery-in";
 export {
   applyStockCountAdjustment,
   type ApplyStockCountAdjustmentInput,

@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
 import { sales, saleLines } from "@/db/schema/sales";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
+import { Quantity } from "@/modules/inventory";
 import type {
   SalesRepository,
   SaleHeaderRecord,
@@ -222,6 +223,32 @@ export const salesRepository: SalesRepository = {
       result[row.id] = row.warehouseId;
     }
     return result;
+  },
+
+  async sumConfirmedQuantityForCustomerInWindow(
+    ctx: TenantSessionContext,
+    customerId: string,
+    windowStart: Date,
+    windowEnd: Date
+  ): Promise<Quantity> {
+    const [row] = await ctx.db
+      .select({ total: sql<string>`coalesce(sum(${saleLines.quantity}), 0)` })
+      .from(saleLines)
+      .innerJoin(
+        sales,
+        and(eq(saleLines.structureId, sales.structureId), eq(saleLines.saleId, sales.id))
+      )
+      .where(
+        and(
+          eq(sales.structureId, ctx.actor.structureId),
+          eq(sales.customerId, customerId),
+          eq(sales.status, "confirmed"),
+          isNotNull(sales.confirmedAt),
+          gte(sales.confirmedAt, windowStart),
+          lt(sales.confirmedAt, windowEnd)
+        )
+      );
+    return Quantity.fromString(row?.total ?? "0");
   },
 
   async listLines(ctx: TenantSessionContext, saleId: string): Promise<SaleLineRecord[]> {

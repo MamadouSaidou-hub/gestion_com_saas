@@ -51,6 +51,16 @@ export type Permission =
   // --- physical stock counts (migration 0014 tables, this phase's use cases) ---
   | "count:open"
   | "count:validate"
+  // --- supplier purchasing (migration 0015 tables) ---
+  | "delivery:read"
+  | "delivery:record"
+  | "delivery:cancel"
+  | "supplier_payment:record"
+  | "supplier_payment:void"
+  // --- rebates (migration 0016 tables) -- generic, quantity-driven, cliff-mode ---
+  | "rebate:read"
+  | "rebate:write" // create/edit a scale's tiers
+  | "rebate:grant" // manual "vérifier le palier" trigger
   // --- sales ---
   | "sale:create"
   | "sale:read"
@@ -110,6 +120,14 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   "transfer:cancel",
   "count:open",
   "count:validate",
+  "delivery:read",
+  "delivery:record",
+  "delivery:cancel",
+  "supplier_payment:record",
+  "supplier_payment:void",
+  "rebate:read",
+  "rebate:write",
+  "rebate:grant",
   "sale:create",
   "sale:read",
   "sale:read_all",
@@ -172,6 +190,22 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "transfer:cancel",
     "count:open",
     "count:validate",
+    "delivery:read",
+    "delivery:record",
+    "delivery:cancel",
+    // supplier_payment:record/void held by manager too (same tier as
+    // payment:record/void above), but the USE CASE itself additionally
+    // rejects a store-scoped manager ("gerant") via storeScopeFor -- supplier
+    // debt is consolidated at tenant level by product decision, so a gerant
+    // gets no "Payer" button even though the role-level permission is
+    // granted (same ceiling-after-permission pattern as assertStoreAccess
+    // elsewhere, just keyed off storeScopeFor !== null instead of a
+    // mismatched warehouseId).
+    "supplier_payment:record",
+    "supplier_payment:void",
+    "rebate:read",
+    "rebate:write",
+    "rebate:grant",
     "sale:create",
     "sale:read",
     "sale:read_all",
@@ -237,6 +271,11 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "transfer:receive",
     "count:open",
     "count:validate",
+    // A stock keeper physically receives deliveries (same tier as
+    // stock:receive/transfer:create above), but never records/voids a
+    // supplier payment (money, not stock) and never touches a rebate scale.
+    "delivery:read",
+    "delivery:record",
   ]),
 
   // Accountant: the billing/receivables set + dashboard:read_financials +
@@ -248,7 +287,13 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
   accountant: new Set<Permission>([
     "product:read",
     "customer:read",
+    "supplier:read",
     "sale:read_all",
+    "delivery:read",
+    "supplier_payment:record",
+    "supplier_payment:void",
+    "rebate:read",
+    "rebate:grant",
     "invoice:read",
     "invoice:read_all",
     "invoice:issue",
@@ -274,6 +319,8 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "customer:read",
     "stock:read",
     "transfer:read",
+    "delivery:read",
+    "rebate:read",
     "sale:read_all",
     "invoice:read",
     "invoice:read_all",

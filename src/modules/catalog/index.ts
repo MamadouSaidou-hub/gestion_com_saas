@@ -3,6 +3,7 @@ import { productRepository } from "./infrastructure/product-repository";
 import { customerRepository } from "./infrastructure/customer-repository";
 import { categoryRepository } from "./infrastructure/category-repository";
 import { warehouseRepository } from "./infrastructure/warehouse-repository";
+import { supplierRepository } from "./infrastructure/supplier-repository";
 import * as useCases from "./application";
 import type {
   ListProductsFilter,
@@ -16,6 +17,8 @@ import type {
   ListCustomersFilter,
   CreateCustomerRequest,
   UpdateCustomerRequest,
+  ListSuppliersFilter,
+  CreateSupplierRequest,
 } from "./application";
 
 // ---------------------------------------------------------------------------
@@ -72,6 +75,14 @@ export const catalogService = {
     useCases.createWarehouse(ctx, input, warehouseRepository),
   archiveWarehouse: (ctx: TenantSessionContext, warehouseId: string) =>
     useCases.archiveWarehouse(ctx, warehouseId, warehouseRepository),
+  // --- suppliers ("Fournisseurs") -- purchasing module reaches these ONLY
+  // through this public surface, never @/db/schema/catalog directly. ---
+  listSuppliers: (ctx: TenantSessionContext, filter: ListSuppliersFilter = {}) =>
+    useCases.listSuppliers(ctx, filter, supplierRepository),
+  getSupplier: (ctx: TenantSessionContext, supplierId: string) =>
+    useCases.getSupplier(ctx, supplierId, supplierRepository),
+  createSupplier: (ctx: TenantSessionContext, input: CreateSupplierRequest) =>
+    useCases.createSupplier(ctx, input, supplierRepository),
 };
 
 export type {
@@ -79,6 +90,7 @@ export type {
   CategoryDto,
   WarehouseDto,
   CustomerDto,
+  SupplierDto,
   ListProductsFilter,
   CreateProductRequest,
   UpdateProductRequest,
@@ -91,6 +103,8 @@ export type {
   ListCustomersFilter,
   CreateCustomerRequest,
   UpdateCustomerRequest,
+  ListSuppliersFilter,
+  CreateSupplierRequest,
 } from "./application";
 export {
   DuplicateSkuError,
@@ -106,4 +120,6 @@ export {
   InvalidWarehouseInputError,
   CustomerNotFoundError,
   InvalidCustomerInputError,
+  SupplierNotFoundError,
+  InvalidSupplierInputError,
 } from "./domain/errors";
