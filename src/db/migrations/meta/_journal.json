@@ -106,6 +106,20 @@
       "when": 1792339200012,
       "tag": "0014_multi_store_transfers_counts",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792339200013,
+      "tag": "0015_supplier_purchasing",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792339200014,
+      "tag": "0016_rebates_and_trgm_search",
+      "breakpoints": true
     }
   ]
 }

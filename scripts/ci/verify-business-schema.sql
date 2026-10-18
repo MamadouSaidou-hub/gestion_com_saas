@@ -55,6 +55,13 @@ begin
     'audit_log',
     -- 0009/0013 additions
     'structure_settings',
+    -- 0014 additions (stock-transfers.ts)
+    'stock_transfers', 'stock_transfer_lines', 'stock_counts', 'stock_count_lines',
+    -- 0015 additions (purchasing.ts)
+    'supplier_deliveries', 'supplier_delivery_lines', 'supplier_payments',
+    'supplier_payment_allocations',
+    -- 0016 additions (rebates.ts)
+    'rebate_scales', 'rebate_tiers', 'rebate_grants',
     -- Better Auth identity tables (src/modules/identity)
     'user', 'session', 'account', 'verification'
   ]) as t
