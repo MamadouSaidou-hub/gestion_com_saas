@@ -233,6 +233,16 @@ jobs:
       - name: Forward migration again (idempotency / re-apply check)
         run: npm run migrate:all
 
+      # Without this assertion the job passes even when the re-apply above
+      # silently no-ops: drizzle's migrate() consults only its own
+      # drizzle.__drizzle_migrations bookkeeping, never the live schema, so a
+      # journal left stale by the down sweep makes it report success against
+      # an empty database. That exact trap was found by hand and is now fixed
+      # in the down scripts, but the fix is only guarded if CI checks the
+      # schema itself rather than trusting the runner's exit code.
+      - name: Assert business schema actually exists after re-apply
+        run: psql "$DATABASE_URL_MIGRATOR" -v ON_ERROR_STOP=1 -f scripts/ci/verify-business-schema.sql
+
   # --------------------------------------------------------------------
   # 5. Trivy: dependency vulnerability gate + SBOM.
   #
