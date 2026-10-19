@@ -50,6 +50,7 @@ export function SalesHistoryClient({
     ticketNumber?: string;
     periodFrom?: string;
     periodTo?: string;
+    customerSearch?: string;
   };
   canExport: boolean;
 }) {
@@ -102,6 +103,14 @@ export function SalesHistoryClient({
             onBlur={(e) => updateParam("ticketNumber", e.target.value.trim())}
             placeholder={dict.salesHistory.searchPlaceholder}
             aria-label={dict.salesHistory.searchPlaceholder}
+            className="max-w-[160px]"
+          />
+          <Input
+            type="text"
+            defaultValue={filter.customerSearch ?? ""}
+            onBlur={(e) => updateParam("customerSearch", e.target.value.trim())}
+            placeholder={dict.salesHistory.customerSearchPlaceholder}
+            aria-label={dict.salesHistory.customerSearchPlaceholder}
             className="max-w-[160px]"
           />
           <label className="flex items-center gap-1 text-xs text-muted-foreground">

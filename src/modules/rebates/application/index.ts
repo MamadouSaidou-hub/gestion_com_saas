@@ -1,4 +1,5 @@
 export { createRebateScale } from "./create-rebate-scale";
+export { updateRebateScaleTiers } from "./update-rebate-scale-tiers";
 export { calculateCustomerRebate } from "./calculate-customer-rebate";
 export {
   checkAndGrantSupplierTier,

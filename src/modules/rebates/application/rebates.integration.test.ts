@@ -191,6 +191,76 @@ describe("rebates: customer side (monthly, cliff mode)", () => {
   });
 });
 
+describe("rebates: tier-configuration UI path parity", () => {
+  it("updateRebateScaleTiers (the tier-config screen's write path) produces the SAME grant as createRebateScale with the same final tiers", async () => {
+    // Party A: tiers set directly at creation time via createRebateScale --
+    // the already-tested service path.
+    const fixtureA = await seedStructure();
+    const productA = await createProduct(fixtureA, { sku: "SKU-UI-A", priceMinor: 100, costMinor: 0 });
+    const ownerA = ownerOf(fixtureA);
+    await withTenantSession(ownerA, (ctx) =>
+      rebatesService.createRebateScale(ctx, {
+        customerId: fixtureA.customerId,
+        currencyCode: "XOF",
+        tiers: [
+          { thresholdQty: "10", rebatePerUnitMinor: "5" },
+          { thresholdQty: "50", rebatePerUnitMinor: "20" },
+        ],
+      })
+    );
+    await setStockLevel(fixtureA, productA, "100.0000", 0);
+    await confirmSaleForCustomer(fixtureA, productA, "60.0000");
+    const grantA = await withTenantSession(ownerA, (ctx) =>
+      rebatesService.calculateCustomerRebate(ctx, fixtureA.customerId)
+    );
+
+    // Party B: scale created with a DIFFERENT, throwaway tier (what the
+    // tier-config screen's "create" step does on first use), then
+    // immediately REPLACED via updateRebateScaleTiers -- the tier-config
+    // screen's "edit" step, and the only genuinely new write path this
+    // round added -- to the SAME final tiers as party A.
+    const fixtureB = await seedStructure();
+    const productB = await createProduct(fixtureB, { sku: "SKU-UI-B", priceMinor: 100, costMinor: 0 });
+    const ownerB = ownerOf(fixtureB);
+    const draftScale = await withTenantSession(ownerB, (ctx) =>
+      rebatesService.createRebateScale(ctx, {
+        customerId: fixtureB.customerId,
+        currencyCode: "XOF",
+        tiers: [{ thresholdQty: "1", rebatePerUnitMinor: "1" }], // throwaway
+      })
+    );
+    await withTenantSession(ownerB, (ctx) =>
+      rebatesService.updateRebateScaleTiers(ctx, draftScale.id, [
+        { thresholdQty: "10", rebatePerUnitMinor: "5" },
+        { thresholdQty: "50", rebatePerUnitMinor: "20" },
+      ])
+    );
+    const scaleAfterUpdate = await withTenantSession(ownerB, (ctx) =>
+      rebatesService.getCustomerRebateProgress(ctx, fixtureB.customerId)
+    );
+    // The throwaway tier must be GONE, not just shadowed -- a full
+    // replace, not an append.
+    expect(scaleAfterUpdate?.scale.tiers).toHaveLength(2);
+    expect(scaleAfterUpdate?.scale.tiers.some((t) => t.thresholdQty === "1.0000")).toBe(false);
+
+    await setStockLevel(fixtureB, productB, "100.0000", 0);
+    await confirmSaleForCustomer(fixtureB, productB, "60.0000");
+    const grantB = await withTenantSession(ownerB, (ctx) =>
+      rebatesService.calculateCustomerRebate(ctx, fixtureB.customerId)
+    );
+
+    expect(grantA).not.toBeNull();
+    expect(grantB).not.toBeNull();
+    // Same counted quantity, same tier reached, same rebate -- the
+    // edit-via-replace path is NOT a second, subtly different way to
+    // configure a rebate.
+    expect(grantB?.countedQty).toBe(grantA?.countedQty);
+    expect(grantB?.tierThresholdQty).toBe(grantA?.tierThresholdQty);
+    expect(grantB?.rebatePerUnitMinor).toBe(grantA?.rebatePerUnitMinor);
+    expect(grantB?.totalRebateMinor).toBe(grantA?.totalRebateMinor);
+  });
+});
+
 describe("rebates: supplier side (cyclic, auto-triggered)", () => {
   it("auto-triggers inside recordDelivery's transaction and grants the highest tier reached", async () => {
     const fixture = await seedStructure();

@@ -15,7 +15,11 @@ import {
   recordSupplierPaymentAction,
   voidSupplierPaymentAction,
 } from "@/modules/purchasing/api/actions";
-import { verifyRebateTierAction } from "@/modules/rebates/api/actions";
+import {
+  verifyRebateTierAction,
+  createRebateScaleAction,
+  updateRebateScaleTiersAction,
+} from "@/modules/rebates/api/actions";
 import { SupplierDetailClient } from "./supplier-detail-client";
 
 // Gated, structure-scoped page: /s/[structureId]/fournisseurs/[supplierId].
@@ -116,10 +120,15 @@ export default async function SupplierDetailPage({
       canRecordPayment={can(actor, "supplier_payment:record") && storeScopeFor(actor) === null}
       canVoidPayment={can(actor, "supplier_payment:void") && storeScopeFor(actor) === null}
       canVerifyTier={can(actor, "rebate:grant")}
+      canConfigureRebate={can(actor, "rebate:write")}
       recordDeliveryAction={recordDeliveryAction.bind(null, structureId)}
       recordSupplierPaymentAction={recordSupplierPaymentAction.bind(null, structureId)}
       voidSupplierPaymentAction={voidSupplierPaymentAction.bind(null, structureId)}
       verifyRebateTierAction={verifyRebateTierAction.bind(null, structureId, supplierId)}
+      createRebateScaleAction={createRebateScaleAction.bind(null, structureId)}
+      updateRebateScaleTiersAction={(scaleId, tiers) =>
+        updateRebateScaleTiersAction(structureId, scaleId, tiers)
+      }
     />
   );
 }

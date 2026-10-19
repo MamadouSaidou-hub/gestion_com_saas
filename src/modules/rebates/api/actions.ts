@@ -10,6 +10,7 @@ import {
   type RebateScaleDto,
   type RebateGrantDto,
   type RebateProgressDto,
+  type RebateTierInput,
   RebateScaleNotFoundError,
 } from "../index";
 
@@ -35,6 +36,25 @@ export async function createRebateScaleAction(
     if (!session) return { ok: false, code: "UNAUTHENTICATED", message: "Session expirée." };
     const actor = await resolveActor(session, structureId);
     const data = await withTenantSession(actor, (ctx) => rebatesService.createRebateScale(ctx, input));
+    return { ok: true, data };
+  } catch (err) {
+    const { code, message } = mapError(err);
+    return { ok: false, code, message };
+  }
+}
+
+export async function updateRebateScaleTiersAction(
+  structureId: string,
+  scaleId: string,
+  tiers: RebateTierInput[]
+): Promise<ActionResult<RebateScaleDto>> {
+  try {
+    const session = await getSession();
+    if (!session) return { ok: false, code: "UNAUTHENTICATED", message: "Session expirée." };
+    const actor = await resolveActor(session, structureId);
+    const data = await withTenantSession(actor, (ctx) =>
+      rebatesService.updateRebateScaleTiers(ctx, scaleId, tiers)
+    );
     return { ok: true, data };
   } catch (err) {
     const { code, message } = mapError(err);

@@ -92,6 +92,12 @@ export interface RebateRepository {
   lockScaleForUpdate(ctx: TenantSessionContext, scaleId: string): Promise<RebateScaleRecord | null>;
   listTiers(ctx: TenantSessionContext, scaleId: string): Promise<RebateTierRecord[]>;
   insertTiers(ctx: TenantSessionContext, scaleId: string, tiers: InsertRebateTierInput[]): Promise<void>;
+  // Full replace (delete all existing tiers for this scale, then insert the
+  // new set) in the SAME transaction (ctx) -- the tier-configuration
+  // screen's "edit/remove thresholds" is modeled as "resubmit the whole
+  // tier list", never a per-row PATCH, so there is exactly one write path
+  // for a scale's tiers (create vs. replace), not two subtly different ones.
+  replaceTiers(ctx: TenantSessionContext, scaleId: string, tiers: InsertRebateTierInput[]): Promise<void>;
   // Race-safe upsert (`ON CONFLICT (structure_id, scale_id, period_label)
   // WHERE model = 'monthly' DO UPDATE`) -- two concurrent "Calculer la
   // ristourne du mois" calls for the same customer/month resolve to ONE

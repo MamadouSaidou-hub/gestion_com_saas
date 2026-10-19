@@ -3,6 +3,7 @@ import { resolveActor } from "@/modules/tenancy/resolve-actor";
 import { withTenantSession } from "@/platform/db/withTenantSession";
 import { NotAMemberError, UnauthenticatedError, ForbiddenError } from "@/platform/errors";
 import { salesService } from "@/modules/sales";
+import { catalogService } from "@/modules/catalog";
 import { rowsToCsv, auditCsvExport, csvResponse } from "@/platform/export/csv";
 
 // GET /s/[structureId]/ventes/export -- CSV export of the sales history
@@ -27,6 +28,7 @@ export async function GET(
     periodFrom: url.searchParams.get("periodFrom") ?? undefined,
     periodTo: url.searchParams.get("periodTo") ?? undefined,
   };
+  const customerSearch = url.searchParams.get("customerSearch")?.trim() ?? "";
 
   try {
     const session = await getSession();
@@ -36,7 +38,21 @@ export async function GET(
     const actor = await resolveActor(session, structureId);
 
     const csv = await withTenantSession(actor, async (ctx) => {
-      const rows = await salesService.exportSalesCsv(ctx, filter);
+      // Same resolution as the list page (`/ventes`'s page.tsx) for the
+      // free-text customer filter -- `exportSalesCsv` only accepts a
+      // single customerId, so a name search is resolved to the matching
+      // set first and the export re-run once per match, merged. Keeps the
+      // "exports the EXACT same filter as the list page" invariant above.
+      let rows;
+      if (customerSearch !== "") {
+        const matches = await catalogService.listCustomers(ctx, { search: customerSearch });
+        const rowsPerMatch = await Promise.all(
+          matches.map((c) => salesService.exportSalesCsv(ctx, { ...filter, customerId: c.id }))
+        );
+        rows = rowsPerMatch.flat();
+      } else {
+        rows = await salesService.exportSalesCsv(ctx, filter);
+      }
       const csvBody = rowsToCsv(rows, [
         { header: "Ticket", value: (r) => r.ticketNumber ?? "" },
         { header: "Date", value: (r) => r.confirmedAt ?? "" },

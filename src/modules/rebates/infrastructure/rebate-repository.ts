@@ -158,6 +158,22 @@ export const rebateRepository: RebateRepository = {
     );
   },
 
+  async replaceTiers(ctx: TenantSessionContext, scaleId: string, tiers: InsertRebateTierInput[]): Promise<void> {
+    await ctx.db
+      .delete(rebateTiers)
+      .where(and(eq(rebateTiers.structureId, ctx.actor.structureId), eq(rebateTiers.scaleId, scaleId)));
+    if (tiers.length === 0) return;
+    await ctx.db.insert(rebateTiers).values(
+      tiers.map((t) => ({
+        structureId: ctx.actor.structureId,
+        scaleId,
+        thresholdQty: t.thresholdQty.toDbString(),
+        rebatePerUnitMinor: t.rebatePerUnitMinor,
+        currencyCode: "XOF",
+      }))
+    );
+  },
+
   async upsertMonthlyGrant(ctx: TenantSessionContext, input: UpsertMonthlyGrantInput): Promise<RebateGrantRecord> {
     const [row] = await ctx.db
       .insert(rebateGrants)

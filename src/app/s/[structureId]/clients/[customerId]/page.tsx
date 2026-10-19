@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/modules/identity/get-session";
 import { resolveActor } from "@/modules/tenancy/resolve-actor";
-import { storeScopeFor } from "@/modules/tenancy/permissions";
+import { can, storeScopeFor } from "@/modules/tenancy/permissions";
 import { withTenantSession } from "@/platform/db/withTenantSession";
 import { structures } from "@/db/schema/tenancy";
 import { NotAMemberError, UnauthenticatedError } from "@/platform/errors";
@@ -10,6 +10,11 @@ import type { SupportedCurrency } from "@/lib/money";
 import { catalogService, CustomerNotFoundError } from "@/modules/catalog";
 import { salesService } from "@/modules/sales";
 import { recordPaymentAction } from "@/modules/billing/api";
+import { rebatesService } from "@/modules/rebates";
+import {
+  createRebateScaleAction,
+  updateRebateScaleTiersAction,
+} from "@/modules/rebates/api/actions";
 import { CustomerDetailClient } from "./customer-detail-client";
 
 // Gated, structure-scoped page: /s/[structureId]/clients/[customerId] --
@@ -80,6 +85,7 @@ export default async function CustomerDetailPage({
 
     const sales = await salesService.listSales(ctx, { customerId });
     const openSales = sales.filter((s) => s.paymentStatus !== "paid");
+    const rebateProgress = await rebatesService.getCustomerRebateProgress(ctx, customerId).catch(() => null);
 
     return {
       structureName: row.name,
@@ -87,6 +93,7 @@ export default async function CustomerDetailPage({
       customer,
       sales,
       openSales,
+      rebateProgress,
     };
   });
 
@@ -102,7 +109,13 @@ export default async function CustomerDetailPage({
       customer={data.customer}
       sales={data.sales}
       openSales={data.openSales}
+      rebateProgress={data.rebateProgress}
+      canConfigureRebate={can(actor, "rebate:write")}
       recordPaymentAction={recordPaymentAction.bind(null, structureId)}
+      createRebateScaleAction={createRebateScaleAction.bind(null, structureId)}
+      updateRebateScaleTiersAction={(scaleId, tiers) =>
+        updateRebateScaleTiersAction(structureId, scaleId, tiers)
+      }
     />
   );
 }

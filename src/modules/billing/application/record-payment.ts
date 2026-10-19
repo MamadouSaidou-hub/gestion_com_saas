@@ -3,10 +3,20 @@ import { assertCan, assertStoreAccess } from "@/modules/tenancy/permissions";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { moneyFromDto, moneyToDto } from "@/platform/dto/money";
 import { salesService } from "@/modules/sales";
+import { resolveIdempotentReplay, IdempotencyRaceLostError } from "@/platform/money/idempotency";
 import { SaleNotFoundError, SaleNotConfirmedError, InvalidPaymentInputError } from "../domain/errors";
 import type { PaymentRepository, InvoiceRepository } from "./ports";
 import type { RecordPaymentInput, PaymentDto } from "./dto";
 import { toPaymentDto } from "./mappers";
+
+// `payments` carries no request-fingerprint column (unlike
+// supplier_deliveries) -- the idempotency key ALONE is the arbiter here.
+// `resolveIdempotentReplay` always compares a fingerprint, so both sides of
+// the comparison are pinned to this same constant, which makes the check a
+// permanent no-op (never throws a mismatch) -- i.e. exactly the previous
+// behaviour, just routed through the shared primitive instead of a second,
+// independently-copied replay branch.
+const NO_FINGERPRINT = "n/a";
 
 const PAYMENT_METHODS = ["cash", "mobile_money", "bank_transfer", "card", "other"] as const;
 
@@ -74,13 +84,23 @@ export async function recordPayment(
     // be visible here because a prior call already committed, so the
     // sale/invoice progress it caused is already applied. No second
     // mutation, no second audit entry.
-    const existing = await repos.paymentRepo.findByIdempotencyKey(ctx, input.idempotencyKey);
-    if (!existing) {
-      throw new InvalidPaymentInputError(
-        "Could not record or find the payment for this idempotency key -- retry."
+    try {
+      const existing = await resolveIdempotentReplay(
+        input.idempotencyKey,
+        "payment",
+        NO_FINGERPRINT,
+        () => NO_FINGERPRINT,
+        { findByIdempotencyKey: (key) => repos.paymentRepo.findByIdempotencyKey(ctx, key) }
       );
+      return toPaymentDto(existing);
+    } catch (err) {
+      if (err instanceof IdempotencyRaceLostError) {
+        throw new InvalidPaymentInputError(
+          "Could not record or find the payment for this idempotency key -- retry."
+        );
+      }
+      throw err;
     }
-    return toPaymentDto(existing);
   }
 
   // Update the sale's running paid total/status. recordPaymentProgress

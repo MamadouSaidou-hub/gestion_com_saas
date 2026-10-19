@@ -56,6 +56,7 @@ export default async function VentesPage({
     ticketNumber: sp.ticketNumber,
     periodFrom: sp.periodFrom,
     periodTo: sp.periodTo,
+    customerSearch: sp.customerSearch,
   };
 
   const data = await withTenantSession(actor, async (ctx) => {
@@ -73,7 +74,26 @@ export default async function VentesPage({
       .filter((w) => w.kind === "store")
       .map((w) => ({ id: w.id, name: w.name }));
 
-    const sales = await salesService.listSales(ctx, filter);
+    // Free-text customer filter: `listSales` only accepts a single
+    // `customerId` (uuid), so a free-text name is resolved to the set of
+    // matching customers FIRST (catalogService.listCustomers' own
+    // `search` support), then `listSales` is run once per match and the
+    // results merged -- `listSales` itself still re-applies scope/
+    // storeScope for EVERY one of those calls, so a gerant never sees a
+    // sale outside their store just because the name search was
+    // unrestricted.
+    let sales;
+    if (filter.customerSearch && filter.customerSearch.trim() !== "") {
+      const matches = await catalogService.listCustomers(ctx, { search: filter.customerSearch.trim() });
+      const resultsPerMatch = await Promise.all(
+        matches.map((c) => salesService.listSales(ctx, { ...filter, customerId: c.id }))
+      );
+      const merged = resultsPerMatch.flat();
+      merged.sort((a, b) => (b.confirmedAt ?? "").localeCompare(a.confirmedAt ?? ""));
+      sales = merged;
+    } else {
+      sales = await salesService.listSales(ctx, filter);
+    }
 
     return {
       structureName: structureRow.name,

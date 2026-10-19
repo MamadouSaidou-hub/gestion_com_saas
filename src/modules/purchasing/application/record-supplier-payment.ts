@@ -4,6 +4,7 @@ import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { moneyFromDto, moneyToDto } from "@/platform/dto/money";
 import { catalogService } from "@/modules/catalog";
 import { applyAtomicBoundedDelta } from "@/platform/money/atomic-delta";
+import { resolveIdempotentReplay, IdempotencyRaceLostError } from "@/platform/money/idempotency";
 import { sql } from "drizzle-orm";
 import {
   InvalidSupplierPaymentInputError,
@@ -13,6 +14,13 @@ import {
 import type { RecordSupplierPaymentInput, SupplierPaymentDto } from "./dto";
 import type { DeliveryRepository, SupplierPaymentRepository } from "./ports";
 import { toSupplierPaymentDto } from "./mappers";
+
+// `supplier_payments` carries no request-fingerprint column, mirroring
+// billing's `payments` table -- see record-payment.ts's identical comment
+// for why both sides of resolveIdempotentReplay's comparison are pinned to
+// this same constant (makes the fingerprint check a permanent no-op,
+// preserving the pre-refactor behaviour exactly).
+const NO_FINGERPRINT = "n/a";
 
 const recordSupplierPaymentSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(200),
@@ -98,13 +106,23 @@ export async function recordSupplierPayment(
     // mutation, no second audit entry. Supplier payments carry no request
     // fingerprint column (mirrors billing's own `payments` table) -- the
     // idempotency key alone is the arbiter here, same as recordPayment.
-    const existing = await repos.paymentRepo.findByIdempotencyKey(ctx, input.idempotencyKey);
-    if (!existing) {
-      throw new InvalidSupplierPaymentInputError(
-        "Could not record or find the supplier payment for this idempotency key -- retry."
+    try {
+      const existing = await resolveIdempotentReplay(
+        input.idempotencyKey,
+        "supplier payment",
+        NO_FINGERPRINT,
+        () => NO_FINGERPRINT,
+        { findByIdempotencyKey: (key) => repos.paymentRepo.findByIdempotencyKey(ctx, key) }
       );
+      return toSupplierPaymentDto(existing);
+    } catch (err) {
+      if (err instanceof IdempotencyRaceLostError) {
+        throw new InvalidSupplierPaymentInputError(
+          "Could not record or find the supplier payment for this idempotency key -- retry."
+        );
+      }
+      throw err;
     }
-    return toSupplierPaymentDto(existing);
   }
 
   if (input.deliveryId && delivery) {

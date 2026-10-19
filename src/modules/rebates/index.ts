@@ -1,7 +1,7 @@
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { rebateRepository } from "./infrastructure/rebate-repository";
 import * as useCases from "./application";
-import type { CreateRebateScaleInput, CheckSupplierTierInput } from "./application";
+import type { CreateRebateScaleInput, CheckSupplierTierInput, RebateTierInput } from "./application";
 
 // ---------------------------------------------------------------------------
 // rebates/index.ts -- the ONLY surface another module is allowed to import
@@ -16,6 +16,8 @@ import type { CreateRebateScaleInput, CheckSupplierTierInput } from "./applicati
 export const rebatesService = {
   createRebateScale: (ctx: TenantSessionContext, input: CreateRebateScaleInput) =>
     useCases.createRebateScale(ctx, input, rebateRepository),
+  updateRebateScaleTiers: (ctx: TenantSessionContext, scaleId: string, tiers: RebateTierInput[]) =>
+    useCases.updateRebateScaleTiers(ctx, scaleId, tiers, rebateRepository),
   calculateCustomerRebate: (ctx: TenantSessionContext, customerId: string) =>
     useCases.calculateCustomerRebate(ctx, customerId, rebateRepository),
   checkAndGrantSupplierTier: (ctx: TenantSessionContext, input: CheckSupplierTierInput) =>

@@ -11,6 +11,10 @@ import { Breadcrumb } from "@/components/nav/breadcrumb";
 import type { CustomerDto } from "@/modules/catalog";
 import type { SaleSummaryDto } from "@/modules/sales";
 import type { RecordPaymentActionResult } from "@/modules/billing/api";
+import type { RebateProgressDto, RebateScaleDto, RebateTierInput } from "@/modules/rebates";
+import { RebateScaleEditor } from "@/components/rebates/rebate-scale-editor";
+
+type RebateActionResult<T> = { ok: true; data: T } | { ok: false; code: string; message: string };
 
 function formatDate(iso: string | null): string {
   if (!iso) return "--";
@@ -125,7 +129,11 @@ export function CustomerDetailClient({
   customer,
   sales,
   openSales,
+  rebateProgress,
+  canConfigureRebate,
   recordPaymentAction,
+  createRebateScaleAction,
+  updateRebateScaleTiersAction,
 }: {
   structureId: string;
   structureName: string;
@@ -133,6 +141,8 @@ export function CustomerDetailClient({
   customer: CustomerDto;
   sales: SaleSummaryDto[];
   openSales: SaleSummaryDto[];
+  rebateProgress: RebateProgressDto | null;
+  canConfigureRebate: boolean;
   recordPaymentAction: (input: {
     saleId: string;
     amountMinor: string;
@@ -140,6 +150,16 @@ export function CustomerDetailClient({
     reference?: string | null;
     idempotencyKey: string;
   }) => Promise<RecordPaymentActionResult>;
+  createRebateScaleAction: (input: {
+    customerId?: string | null;
+    supplierId?: string | null;
+    currencyCode: string;
+    tiers: RebateTierInput[];
+  }) => Promise<RebateActionResult<RebateScaleDto>>;
+  updateRebateScaleTiersAction: (
+    scaleId: string,
+    tiers: RebateTierInput[]
+  ) => Promise<RebateActionResult<RebateScaleDto>>;
 }) {
   const router = useRouter();
 
@@ -188,6 +208,54 @@ export function CustomerDetailClient({
             {customer.isActive ? dict.clients.activeLabel : "Inactif"}
           </Badge>
         </section>
+
+        {(rebateProgress || canConfigureRebate) && (
+          <section className="mb-4 rounded-lg border border-border bg-card p-4">
+            <h2 className="mb-1 text-sm font-semibold">{dict.rebates.title}</h2>
+            <p className="mb-2 text-xs text-muted-foreground">{dict.rebates.informationalBanner}</p>
+            {rebateProgress ? (
+              <>
+                <p className="text-sm">
+                  {dict.rebates.unitsThisMonth}:{" "}
+                  <span className="tabular-nums font-medium">{rebateProgress.countedQty}</span>
+                </p>
+                <p className="text-sm">
+                  {rebateProgress.tierReached ? (
+                    <>
+                      {dict.rebates.tierReached}: {rebateProgress.tierReached.thresholdQty} --{" "}
+                      {dict.rebates.projectedRebate}:{" "}
+                      <span className="font-medium">
+                        {formatMoney(Number(rebateProgress.projectedRebateMinor ?? "0"), currency)}
+                      </span>
+                    </>
+                  ) : (
+                    dict.rebates.noTierReached
+                  )}
+                </p>
+                {rebateProgress.nextTier && (
+                  <p className="text-xs text-muted-foreground">
+                    {rebateProgress.unitsToNextTier} {dict.rebates.nextTierIn}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mb-2 text-sm text-muted-foreground">{dict.rebates.noScale}</p>
+            )}
+            {canConfigureRebate && (
+              <div className="mt-3">
+                <RebateScaleEditor
+                  scale={rebateProgress?.scale ?? null}
+                  currency={currency}
+                  canWrite={canConfigureRebate}
+                  party={{ customerId: customer.id }}
+                  createRebateScaleAction={createRebateScaleAction}
+                  updateRebateScaleTiersAction={updateRebateScaleTiersAction}
+                  onSuccess={() => router.refresh()}
+                />
+              </div>
+            )}
+          </section>
+        )}
 
         {openSales.length > 0 && (
           <section className="mb-4">

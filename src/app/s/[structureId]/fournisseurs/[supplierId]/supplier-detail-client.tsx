@@ -16,7 +16,8 @@ import type {
   RecordDeliveryInput,
   RecordSupplierPaymentInput,
 } from "@/modules/purchasing";
-import type { RebateProgressDto } from "@/modules/rebates";
+import type { RebateProgressDto, RebateScaleDto, RebateTierInput } from "@/modules/rebates";
+import { RebateScaleEditor } from "@/components/rebates/rebate-scale-editor";
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; code: string; message: string };
 
@@ -40,10 +41,13 @@ export function SupplierDetailClient({
   canRecordPayment,
   canVoidPayment: _canVoidPayment,
   canVerifyTier,
+  canConfigureRebate,
   recordDeliveryAction,
   recordSupplierPaymentAction,
   voidSupplierPaymentAction: _voidSupplierPaymentAction,
   verifyRebateTierAction,
+  createRebateScaleAction,
+  updateRebateScaleTiersAction,
 }: {
   structureId: string;
   structureName: string;
@@ -58,16 +62,24 @@ export function SupplierDetailClient({
   canRecordPayment: boolean;
   canVoidPayment: boolean;
   canVerifyTier: boolean;
+  canConfigureRebate: boolean;
   recordDeliveryAction: (input: RecordDeliveryInput) => Promise<ActionResult<DeliveryDto>>;
   recordSupplierPaymentAction: (input: RecordSupplierPaymentInput) => Promise<ActionResult<unknown>>;
   voidSupplierPaymentAction: (paymentId: string) => Promise<ActionResult<unknown>>;
   verifyRebateTierAction: () => Promise<ActionResult<unknown>>;
+  createRebateScaleAction: (input: {
+    customerId?: string | null;
+    supplierId?: string | null;
+    currencyCode: string;
+    tiers: RebateTierInput[];
+  }) => Promise<ActionResult<RebateScaleDto>>;
+  updateRebateScaleTiersAction: (scaleId: string, tiers: RebateTierInput[]) => Promise<ActionResult<RebateScaleDto>>;
 }) {
   const router = useRouter();
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
-  const [productId, setProductId] = useState(products[0]?.id ?? "");
-  const [quantity, setQuantity] = useState("1");
-  const [unitCostMinor, setUnitCostMinor] = useState("0");
+  const [deliveryLines, setDeliveryLines] = useState<
+    Array<{ productId: string; quantity: string; unitCostMinor: string }>
+  >([{ productId: products[0]?.id ?? "", quantity: "1", unitCostMinor: "0" }]);
   const [showPayForm, setShowPayForm] = useState(false);
   const [payAmount, setPayAmount] = useState("0");
   const [payMethod, setPayMethod] = useState<SupplierPaymentMethod>("cash");
@@ -75,6 +87,22 @@ export function SupplierDetailClient({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  function updateDeliveryLine(
+    index: number,
+    field: "productId" | "quantity" | "unitCostMinor",
+    value: string
+  ) {
+    setDeliveryLines((prev) => prev.map((line, i) => (i === index ? { ...line, [field]: value } : line)));
+  }
+
+  function addDeliveryLine() {
+    setDeliveryLines((prev) => [...prev, { productId: products[0]?.id ?? "", quantity: "1", unitCostMinor: "0" }]);
+  }
+
+  function removeDeliveryLine(index: number) {
+    setDeliveryLines((prev) => prev.filter((_, i) => i !== index));
+  }
 
   async function handleRecordDelivery() {
     setPending(true);
@@ -84,12 +112,18 @@ export function SupplierDetailClient({
       setError("Aucun magasin actif pour recevoir cette livraison.");
       return;
     }
+    const productIds = deliveryLines.map((l) => l.productId);
+    if (new Set(productIds).size !== productIds.length) {
+      setPending(false);
+      setError(dict.purchasing.duplicateProductError);
+      return;
+    }
     const result = await recordDeliveryAction({
       idempotencyKey: `delivery:${supplier.id}:${crypto.randomUUID()}`,
       supplierId: supplier.id,
       warehouseId: defaultWarehouseId,
       currencyCode: currency,
-      lines: [{ productId, quantity, unitCostMinor }],
+      lines: deliveryLines,
     });
     setPending(false);
     if (!result.ok) {
@@ -97,6 +131,7 @@ export function SupplierDetailClient({
       return;
     }
     setShowDeliveryForm(false);
+    setDeliveryLines([{ productId: products[0]?.id ?? "", quantity: "1", unitCostMinor: "0" }]);
     setNotice(dict.purchasing.recordDeliverySuccess);
     router.refresh();
   }
@@ -209,42 +244,75 @@ export function SupplierDetailClient({
         {showDeliveryForm && (
           <div className="mb-4 rounded-md border border-border p-3">
             <h2 className="mb-2 text-sm font-semibold">{dict.purchasing.newDeliveryTitle}</h2>
-            <label className="mb-1 block text-xs font-medium" htmlFor="delivery-product">
-              {dict.purchasing.productLabel}
-            </label>
-            <select
-              id="delivery-product"
-              value={productId}
-              onChange={(e) => setProductId(e.target.value)}
-              className="mb-2 h-touch w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.sku})
-                </option>
+            <div className="space-y-3">
+              {deliveryLines.map((line, index) => (
+                <div key={index} className="rounded-md border border-border/60 p-2">
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {dict.purchasing.lineLabel} {index + 1}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => removeDeliveryLine(index)}
+                      disabled={deliveryLines.length <= 1}
+                      aria-label={dict.purchasing.removeLineCta}
+                      className="h-touch rounded-md border border-border px-2 text-xs text-muted-foreground hover:bg-accent disabled:opacity-40"
+                    >
+                      {dict.purchasing.removeLineCta}
+                    </button>
+                  </div>
+                  <label className="mb-1 block text-xs font-medium" htmlFor={`delivery-product-${index}`}>
+                    {dict.purchasing.productLabel}
+                  </label>
+                  <select
+                    id={`delivery-product-${index}`}
+                    value={line.productId}
+                    onChange={(e) => updateDeliveryLine(index, "productId", e.target.value)}
+                    className="mb-2 h-touch w-full rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.sku})
+                      </option>
+                    ))}
+                  </select>
+                  <label className="mb-1 block text-xs font-medium" htmlFor={`delivery-qty-${index}`}>
+                    {dict.purchasing.quantityLabel}
+                  </label>
+                  <Input
+                    id={`delivery-qty-${index}`}
+                    value={line.quantity}
+                    onChange={(e) => updateDeliveryLine(index, "quantity", e.target.value)}
+                    className="mb-2"
+                  />
+                  <label className="mb-1 block text-xs font-medium" htmlFor={`delivery-cost-${index}`}>
+                    {dict.purchasing.unitCostLabel}
+                  </label>
+                  <Input
+                    id={`delivery-cost-${index}`}
+                    value={line.unitCostMinor}
+                    onChange={(e) => updateDeliveryLine(index, "unitCostMinor", e.target.value)}
+                  />
+                </div>
               ))}
-            </select>
-            <label className="mb-1 block text-xs font-medium" htmlFor="delivery-qty">
-              {dict.purchasing.quantityLabel}
-            </label>
-            <Input id="delivery-qty" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="mb-2" />
-            <label className="mb-1 block text-xs font-medium" htmlFor="delivery-cost">
-              {dict.purchasing.unitCostLabel}
-            </label>
-            <Input
-              id="delivery-cost"
-              value={unitCostMinor}
-              onChange={(e) => setUnitCostMinor(e.target.value)}
-              className="mb-2"
-            />
+            </div>
             <button
               type="button"
-              disabled={pending || !productId}
-              onClick={handleRecordDelivery}
-              className="h-touch rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              onClick={addDeliveryLine}
+              className="mt-2 h-touch rounded-md border border-dashed border-border px-3 text-sm text-muted-foreground hover:bg-accent"
             >
-              {dict.purchasing.recordDeliveryCta}
+              {dict.purchasing.addLineCta}
             </button>
+            <div className="mt-3">
+              <button
+                type="button"
+                disabled={pending || deliveryLines.some((l) => !l.productId)}
+                onClick={handleRecordDelivery}
+                className="h-touch rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {dict.purchasing.recordDeliveryCta}
+              </button>
+            </div>
           </div>
         )}
 
@@ -295,40 +363,60 @@ export function SupplierDetailClient({
           </div>
         )}
 
-        {rebateProgress && (
+        {(rebateProgress || canConfigureRebate) && (
           <div className="mb-4 rounded-lg border border-border bg-card p-4">
             <h2 className="mb-1 text-sm font-semibold">{dict.rebates.title}</h2>
             <p className="mb-2 text-xs text-muted-foreground">{dict.rebates.informationalBanner}</p>
-            <p className="text-sm">
-              {dict.rebates.unitsThisCycle}: <span className="tabular-nums font-medium">{rebateProgress.countedQty}</span>
-            </p>
-            <p className="text-sm">
-              {rebateProgress.tierReached ? (
-                <>
-                  {dict.rebates.tierReached}: {rebateProgress.tierReached.thresholdQty} --{" "}
-                  {dict.rebates.projectedRebate}:{" "}
-                  <span className="font-medium">
-                    {formatMoney(Number(rebateProgress.projectedRebateMinor ?? "0"), currency)}
-                  </span>
-                </>
-              ) : (
-                dict.rebates.noTierReached
-              )}
-            </p>
-            {rebateProgress.nextTier && (
-              <p className="text-xs text-muted-foreground">
-                {rebateProgress.unitsToNextTier} {dict.rebates.nextTierIn}
-              </p>
+            {rebateProgress ? (
+              <>
+                <p className="text-sm">
+                  {dict.rebates.unitsThisCycle}:{" "}
+                  <span className="tabular-nums font-medium">{rebateProgress.countedQty}</span>
+                </p>
+                <p className="text-sm">
+                  {rebateProgress.tierReached ? (
+                    <>
+                      {dict.rebates.tierReached}: {rebateProgress.tierReached.thresholdQty} --{" "}
+                      {dict.rebates.projectedRebate}:{" "}
+                      <span className="font-medium">
+                        {formatMoney(Number(rebateProgress.projectedRebateMinor ?? "0"), currency)}
+                      </span>
+                    </>
+                  ) : (
+                    dict.rebates.noTierReached
+                  )}
+                </p>
+                {rebateProgress.nextTier && (
+                  <p className="text-xs text-muted-foreground">
+                    {rebateProgress.unitsToNextTier} {dict.rebates.nextTierIn}
+                  </p>
+                )}
+                {canVerifyTier && (
+                  <button
+                    type="button"
+                    onClick={handleVerifyTier}
+                    disabled={pending}
+                    className="mt-2 h-touch rounded-md border border-border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
+                  >
+                    {dict.rebates.verifyTierCta}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="mb-2 text-sm text-muted-foreground">{dict.rebates.noScale}</p>
             )}
-            {canVerifyTier && (
-              <button
-                type="button"
-                onClick={handleVerifyTier}
-                disabled={pending}
-                className="mt-2 h-touch rounded-md border border-border px-3 text-sm font-medium hover:bg-accent disabled:opacity-50"
-              >
-                {dict.rebates.verifyTierCta}
-              </button>
+            {canConfigureRebate && (
+              <div className="mt-3">
+                <RebateScaleEditor
+                  scale={rebateProgress?.scale ?? null}
+                  currency={currency}
+                  canWrite={canConfigureRebate}
+                  party={{ supplierId: supplier.id }}
+                  createRebateScaleAction={createRebateScaleAction}
+                  updateRebateScaleTiersAction={updateRebateScaleTiersAction}
+                  onSuccess={() => router.refresh()}
+                />
+              </div>
             )}
           </div>
         )}
