@@ -147,7 +147,6 @@ export const GESTION_NAV: NavItemDef[] = [
     label: dict.nav.team,
     icon: UserCog,
     permissions: ["settings:write", "audit:read"],
-    comingSoon: true,
   },
   {
     // Multi-store (migration 0014): "Magasins" -- list/create/archive is

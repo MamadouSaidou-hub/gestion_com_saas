@@ -41,6 +41,17 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  // Added by migration 0002 (team/user-creation phase) -- registered as a
+  // Better Auth `user.additionalFields` entry in auth.ts so it round-trips
+  // through getSession()'s session.user, NOT via the admin plugin (this
+  // project deliberately does not install Better Auth's admin plugin --
+  // see modules/tenancy/create-member.ts header comment). Set true by
+  // create-member.ts when an owner/manager creates a teammate with an
+  // admin-chosen password; cleared by the forced change-password flow
+  // (src/app/compte/mot-de-passe) once the user picks their own password.
+  // Default false so the normal self-service sign-up path (createStructure
+  // flow) is never affected.
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
 }, (t) => [
   uniqueIndex("user_email_idx").on(t.email),
 ]);

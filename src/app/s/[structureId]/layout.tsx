@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/modules/identity/get-session";
+import { redirectIfMustChangePassword } from "@/modules/identity/must-change-password";
 import { resolveActor } from "@/modules/tenancy/resolve-actor";
 import { can } from "@/modules/tenancy/permissions";
 import { listMyMemberships } from "@/modules/tenancy/my-memberships";
@@ -37,6 +38,7 @@ export default async function StructureLayout({
   if (!session) {
     redirect("/login");
   }
+  redirectIfMustChangePassword(session, `/s/${structureId}/dashboard`);
 
   let canSell = false;
   let allowedKeys: NavKey[] = [];

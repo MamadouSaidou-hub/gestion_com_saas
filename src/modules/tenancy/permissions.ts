@@ -24,6 +24,9 @@ export type Permission =
   | "settings:write" // structure display name, tax config, etc.
   | "member:invite"
   | "member:remove"
+  // --- team / user-creation phase ---
+  | "user:create" // admin-password-set account creation (owner/manager, see create-member.ts)
+  | "member:scope_set" // assign/unassign a member's store (owner only -- see assign-member-warehouse.ts)
   // --- catalog ---
   | "product:read"
   | "product:write"
@@ -98,6 +101,8 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   "settings:write",
   "member:invite",
   "member:remove",
+  "user:create",
+  "member:scope_set",
   "product:read",
   "product:write",
   "product:archive",
@@ -171,6 +176,15 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
   manager: new Set<Permission>([
     "settings:write",
     "member:invite",
+    // A manager may create teammate accounts (cashier/stock_keeper/etc. and
+    // even a co-manager), but never an owner -- enforced in create-member.ts
+    // (the use case's own role check), not here: the permission matrix only
+    // answers "may this role call the use case at all".
+    "user:create",
+    // Deliberately NOT granted: member:remove (unchanged, owner-only) and
+    // member:scope_set (store (re)assignment stays owner-only too -- see
+    // assign-member-warehouse.ts, which already hard-codes this and now
+    // also calls assertCan as defense in depth).
     "product:read",
     "product:write",
     "product:archive",

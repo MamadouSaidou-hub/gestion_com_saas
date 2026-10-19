@@ -6,6 +6,8 @@ import { resolveActor } from "@/modules/tenancy/resolve-actor";
 import { can } from "@/modules/tenancy/permissions";
 import { withTenantSession } from "@/platform/db/withTenantSession";
 import { structures } from "@/db/schema/tenancy";
+import { warehouses } from "@/db/schema/catalog";
+import { listMembers } from "@/modules/tenancy/list-members";
 import { NotAMemberError, UnauthenticatedError } from "@/platform/errors";
 import { dict } from "@/lib/i18n";
 import { TeamListClient } from "./team-list-client";
@@ -19,6 +21,11 @@ import { TeamListClient } from "./team-list-client";
 // accountant get a fail-closed "forbidden" message, not a 404 (they ARE
 // members of the structure -- just not of this screen's audience) and not a
 // silent redirect (which would hide WHY the link didn't work).
+//
+// Now wired to the REAL `memberships` roster (listMembers) -- mock-team.ts
+// is gone. Store list (for the "assign a store" / "create member" store
+// picker) is fetched here too so the client component never needs its own
+// round trip.
 export const dynamic = "force-dynamic";
 
 export default async function EquipePage({
@@ -46,19 +53,6 @@ export default async function EquipePage({
     throw err;
   }
 
-  const structure = await withTenantSession(actor, async ({ db }) => {
-    const [row] = await db
-      .select({ name: structures.name })
-      .from(structures)
-      .where(eq(structures.id, actor.structureId))
-      .limit(1);
-    return row;
-  });
-
-  if (!structure) {
-    notFound();
-  }
-
   const canViewTeam = can(actor, "settings:write") || can(actor, "audit:read");
   if (!canViewTeam) {
     return (
@@ -77,11 +71,36 @@ export default async function EquipePage({
     );
   }
 
+  const { structure, members, stores } = await withTenantSession(actor, async (ctx) => {
+    const [structureRow] = await ctx.db
+      .select({ name: structures.name })
+      .from(structures)
+      .where(eq(structures.id, actor.structureId))
+      .limit(1);
+    const storeRows = await ctx.db
+      .select({ id: warehouses.id, name: warehouses.name })
+      .from(warehouses)
+      .where(eq(warehouses.structureId, actor.structureId));
+    const memberRows = await listMembers(ctx);
+    return { structure: structureRow, members: memberRows, stores: storeRows };
+  });
+
+  if (!structure) {
+    notFound();
+  }
+
   return (
     <TeamListClient
       structureId={structureId}
       structureName={structure.name}
-      canInvite={can(actor, "member:invite")}
+      actorUserId={actor.userId}
+      actorRole={actor.role}
+      initialMembers={members}
+      stores={stores}
+      canCreateMember={can(actor, "user:create")}
+      canChangeRole={can(actor, "settings:write")}
+      canSuspend={can(actor, "member:remove")}
+      canAssignStore={can(actor, "member:scope_set")}
     />
   );
 }

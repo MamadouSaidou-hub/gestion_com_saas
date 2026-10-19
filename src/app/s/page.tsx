@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ChevronRight, Store } from "lucide-react";
 import { getSession } from "@/modules/identity/get-session";
+import { redirectIfMustChangePassword } from "@/modules/identity/must-change-password";
 import { listMyMemberships } from "@/modules/tenancy/my-memberships";
 import { dict } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export default async function StructurePickerPage() {
   if (!session) {
     redirect("/login");
   }
+  redirectIfMustChangePassword(session, "/s");
 
   const memberships = await listMyMemberships(session);
 

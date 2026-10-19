@@ -4,6 +4,7 @@ import { memberships } from "@/db/schema/tenancy";
 import { warehouses } from "@/db/schema/catalog";
 import { ForbiddenError } from "@/platform/errors";
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
+import { assertCan } from "./permissions";
 
 // ---------------------------------------------------------------------------
 // assignMemberWarehouse -- "assigning a store to an existing member" on
@@ -59,6 +60,13 @@ export async function assignMemberWarehouse(
   ctx: TenantSessionContext,
   rawInput: AssignMemberWarehouseInput
 ): Promise<void> {
+  // assertCan first (convention, docs/platform.md) -- the explicit
+  // role !== "owner" check right below is kept as defense in depth: today
+  // "member:scope_set" is only ever granted to owner (permissions.ts), so
+  // the two checks currently agree, but this function predates the
+  // permission (it used to be the ONLY gate) and the matrix is the kind of
+  // file that drifts over time -- keep both rather than trust one.
+  assertCan(ctx.actor, "member:scope_set");
   if (ctx.actor.role !== "owner") {
     throw new ForbiddenError('Only an "owner" may assign a member to a store.');
   }
@@ -106,7 +114,18 @@ export async function assignMemberWarehouse(
   await ctx.audit.append({
     action: "membership.warehouse_assigned",
     targetType: "membership",
-    targetId: input.memberUserId,
-    payload: { warehouseId: input.warehouseId, previousWarehouseId: target.warehouseId },
+    // H-fix (found while wiring this control to the real UI, team/
+    // user-creation phase): `targetId` is a uuid column (audit_log_append,
+    // 0001) -- Better Auth's own user id is NOT guaranteed uuid-shaped (its
+    // default generator produces a plain random string, see
+    // modules/identity/schema.ts), so casting it into this column would
+    // throw `invalid input syntax for type uuid` for any real signed-up
+    // user. This function predates the real UI wiring and was never
+    // exercised with a real Better Auth id before -- caught by execution
+    // while adding create-member.integration.test.ts's coverage for
+    // change-member-role.ts/suspend-member.ts, which share the same
+    // pattern. Carried in the payload instead, under a non-PII key name.
+    targetId: null,
+    payload: { memberUserId: input.memberUserId, warehouseId: input.warehouseId, previousWarehouseId: target.warehouseId },
   });
 }

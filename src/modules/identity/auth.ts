@@ -41,6 +41,27 @@ export const auth = betterAuth({
   }),
   secret: requiredEnv("BETTER_AUTH_SECRET"),
   baseURL: betterAuthUrl,
+  // Team/user-creation phase: registers the `must_change_password` column
+  // (schema.ts, identity migration 0002) with Better Auth itself so it
+  // round-trips through getSession()'s session.user -- without this,
+  // Better Auth's own field list (derived from getAuthTables(), not from
+  // our drizzle table object directly) would silently drop the column from
+  // every select/insert it issues, even though the column exists in
+  // Postgres. `input: false` -- never settable by a normal client call
+  // (e.g. a future self-service "update profile" endpoint); only
+  // create-member.ts (a direct SQL write under withTenantSession, see that
+  // file's header) and the forced change-password flow are allowed to
+  // change it.
+  user: {
+    additionalFields: {
+      mustChangePassword: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: false,
+      },
+    },
+  },
   // H4: don't rely on Better Auth's own origin-sniffing defaults -- pin the
   // exact set of origins allowed to drive auth flows (CSRF/open-redirect
   // surface). Same value as baseURL today (single first-party frontend);

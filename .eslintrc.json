@@ -28,7 +28,8 @@
         "src/modules/tenancy/resolve-actor.ts",
         "src/modules/tenancy/my-memberships.ts",
         "src/modules/tenancy/create-structure.ts",
-        "src/modules/identity/auth.ts"
+        "src/modules/identity/auth.ts",
+        "src/modules/identity/must-change-password.ts"
       ],
       "rules": {
         "no-restricted-imports": "off"
