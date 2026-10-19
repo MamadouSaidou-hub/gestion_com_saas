@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
+  BarChart3,
   ClipboardList,
   FileText,
   LayoutDashboard,
@@ -9,6 +10,7 @@ import {
   Store,
   Truck,
   UserCog,
+  Wallet,
 } from "lucide-react";
 import type { Permission } from "@/modules/tenancy/permissions";
 import { dict } from "@/lib/i18n";
@@ -34,6 +36,8 @@ export type NavKey =
   | "salesHistory"
   | "stockMovements"
   | "transfers"
+  | "treasury"
+  | "reports"
   | "products"
   | "suppliers"
   | "invoices"
@@ -93,6 +97,20 @@ export const PILOTAGE_NAV: NavItemDef[] = [
     label: dict.nav.transfers,
     icon: ArrowLeftRight,
     permissions: ["transfer:read"],
+  },
+  {
+    key: "treasury",
+    href: (id) => `/s/${id}/tresorerie`,
+    label: dict.treasury.title,
+    icon: Wallet,
+    permissions: ["treasury:read"],
+  },
+  {
+    key: "reports",
+    href: (id) => `/s/${id}/rapports`,
+    label: dict.reports.title,
+    icon: BarChart3,
+    permissions: ["dashboard:read_financials"],
   },
 ];
 

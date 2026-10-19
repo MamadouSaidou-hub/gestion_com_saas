@@ -85,6 +85,7 @@ export type Permission =
   | "dashboard:read"
   | "dashboard:read_financials"
   | "report:export"
+  | "treasury:read"
   // --- audit ---
   | "audit:read"
   | "audit:verify"
@@ -149,6 +150,7 @@ const ALL_PERMISSIONS: readonly Permission[] = [
   "dashboard:read",
   "dashboard:read_financials",
   "report:export",
+  "treasury:read",
   "audit:read",
   "audit:verify",
   "audit:export",
@@ -227,6 +229,7 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "dashboard:read",
     "dashboard:read_financials",
     "report:export",
+    "treasury:read",
   ]),
 
   // Cashier: the exact set from the approved plan. Note `sale:read` without
@@ -309,6 +312,7 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "dashboard:read",
     "dashboard:read_financials",
     "report:export",
+    "treasury:read",
     "audit:read",
   ]),
 
@@ -329,6 +333,7 @@ const MATRIX: Record<MembershipRole, ReadonlySet<Permission>> = {
     "dashboard:read",
     "dashboard:read_financials",
     "report:export",
+    "treasury:read",
     "audit:read",
     "audit:verify",
     "audit:export",

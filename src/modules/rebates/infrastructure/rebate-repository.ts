@@ -249,4 +249,24 @@ export const rebateRepository: RebateRepository = {
       .orderBy(desc(rebateGrants.grantedAt));
     return rows.map(grantToDomain);
   },
+
+  async listRecentGrants(
+    ctx: TenantSessionContext,
+    sinceExclusive: Date
+  ): Promise<Array<RebateGrantRecord & { customerId: string | null; supplierId: string | null }>> {
+    const rows = await ctx.db
+      .select({ grant: rebateGrants, customerId: rebateScales.customerId, supplierId: rebateScales.supplierId })
+      .from(rebateGrants)
+      .innerJoin(
+        rebateScales,
+        and(eq(rebateGrants.structureId, rebateScales.structureId), eq(rebateGrants.scaleId, rebateScales.id))
+      )
+      .where(and(eq(rebateGrants.structureId, ctx.actor.structureId), gte(rebateGrants.grantedAt, sinceExclusive)))
+      .orderBy(desc(rebateGrants.grantedAt));
+    return rows.map((row) => ({
+      ...grantToDomain(row.grant),
+      customerId: row.customerId,
+      supplierId: row.supplierId,
+    }));
+  },
 };

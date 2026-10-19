@@ -1,7 +1,8 @@
 import type { TenantSessionContext } from "@/platform/db/withTenantSession";
 import { analyticsRepository } from "./infrastructure/analytics-repository";
+import { globalSearchRepository } from "./infrastructure/search-repository";
 import * as useCases from "./application";
-import type { GetDashboardInput } from "./application";
+import type { GetDashboardInput, GetTreasuryInput, GetReportsInput } from "./application";
 
 // ---------------------------------------------------------------------------
 // analytics/index.ts -- the ONLY surface another module (or the RSC
@@ -21,6 +22,15 @@ export const analyticsService = {
     useCases.getDashboard(ctx, input, analyticsRepository),
   getHeadline: (ctx: TenantSessionContext, input: GetDashboardInput) =>
     useCases.getHeadline(ctx, input, analyticsRepository),
+  getTreasury: (ctx: TenantSessionContext, input: GetTreasuryInput) =>
+    useCases.getTreasury(ctx, input, analyticsRepository),
+  getReports: (ctx: TenantSessionContext, input: GetReportsInput) =>
+    useCases.getReports(ctx, input, analyticsRepository),
+  exportReportsCsv: (ctx: TenantSessionContext, input: GetReportsInput) =>
+    useCases.exportReportsCsv(ctx, input, analyticsRepository),
+  globalSearch: (ctx: TenantSessionContext, query: string) =>
+    useCases.globalSearch(ctx, query, globalSearchRepository),
+  getNotifications: (ctx: TenantSessionContext) => useCases.getNotifications(ctx),
 };
 
 export type {
@@ -33,5 +43,14 @@ export type {
   MarginDto,
   ReceivablesDto,
   HeadlineDto,
+  TreasuryDto,
+  TreasurySupplierDto,
+  GetTreasuryInput,
+  ReportsDto,
+  RevenueByStoreDto,
+  GetReportsInput,
+  SearchResultDto,
+  NotificationItem,
+  NotificationKind,
 } from "./application";
 export type { PeriodGranularity } from "./domain";

@@ -109,4 +109,12 @@ export interface RebateRepository {
     sinceInclusive: Date
   ): Promise<Quantity | null>;
   listGrantsByScale(ctx: TenantSessionContext, scaleId: string): Promise<RebateGrantRecord[]>;
+  // Tenant-wide, across every scale -- the notifications derivation's "tier
+  // reached" source. Joins back to rebate_scales for the customer/supplier
+  // id so a notification can link to the right fiche without a second
+  // round trip.
+  listRecentGrants(
+    ctx: TenantSessionContext,
+    sinceExclusive: Date
+  ): Promise<Array<RebateGrantRecord & { customerId: string | null; supplierId: string | null }>>;
 }

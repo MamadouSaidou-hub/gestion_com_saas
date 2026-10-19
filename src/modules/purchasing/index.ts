@@ -35,6 +35,8 @@ export const purchasingService = {
     useCases.listDeliveries(ctx, filter, deliveryRepository),
   getSupplierDebt: (ctx: TenantSessionContext, supplierId: string) =>
     useCases.getSupplierDebt(ctx, supplierId, deliveryRepository),
+  getTotalSupplierDebt: (ctx: TenantSessionContext) =>
+    useCases.getTotalSupplierDebt(ctx, deliveryRepository),
   // Read-only cross-module primitive for rebates -- see header comment.
   sumDeliveredQuantitySince: (ctx: TenantSessionContext, supplierId: string, sinceExclusive: Date) =>
     deliveryRepository.sumDeliveredQuantitySince(ctx, supplierId, sinceExclusive),
@@ -49,6 +51,7 @@ export type {
   SupplierPaymentDto,
   SupplierPaymentMethod,
   SupplierDebtDto,
+  SupplierDebtTotalDto,
   ListDeliveriesFilter,
   DeliveryPaymentStatus,
 } from "./application";

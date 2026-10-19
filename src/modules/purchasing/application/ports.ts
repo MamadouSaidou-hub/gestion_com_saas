@@ -85,6 +85,11 @@ export interface DeliveryRepository {
   // Σ total_minor - Σ paid_minor across every non-cancelled delivery for
   // this supplier.
   sumDebtBySupplier(ctx: TenantSessionContext, supplierId: string): Promise<bigint>;
+  // Same aggregate, across EVERY supplier of the tenant -- treasury's
+  // "we owe suppliers" figure. Tenant-level only, by the same product
+  // decision as sumDebtBySupplier (supplier debt is consolidated at
+  // tenant level, never attributed to a single store).
+  sumTotalDebt(ctx: TenantSessionContext): Promise<bigint>;
   // Rebates' supplier-side cyclic read dependency -- Σ quantity of every
   // non-cancelled delivery line whose delivery's received_at is STRICTLY
   // GREATER than `sinceExclusive` (so the delivery that closed a cycle is

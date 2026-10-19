@@ -68,3 +68,7 @@ export interface SupplierDebtDto {
   supplierId: string;
   debtMinor: MoneyMinorDto;
 }
+
+export interface SupplierDebtTotalDto {
+  debtMinor: MoneyMinorDto;
+}

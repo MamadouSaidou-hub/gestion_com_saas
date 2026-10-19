@@ -16,7 +16,10 @@ import { authClient } from "@/modules/identity/auth-client";
 import { purgeScope, scopeKeyFor } from "@/lib/offline-sales-queue";
 import { dict } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import type { NotificationItem, SearchResultDto } from "@/modules/analytics";
 import { PILOTAGE_NAV, GESTION_NAV, type NavItemDef, type NavKey, navItemByKey } from "./nav-items";
+import { GlobalSearch } from "./global-search";
+import { NotificationsMenu } from "./notifications-menu";
 
 export interface ShellMembership {
   structureId: string;
@@ -72,6 +75,8 @@ export function AppShell({
   allowedKeys,
   canSell,
   memberships,
+  notifications,
+  searchAction,
   children,
 }: {
   structureId: string;
@@ -82,6 +87,8 @@ export function AppShell({
   allowedKeys: NavKey[];
   canSell: boolean;
   memberships: ShellMembership[];
+  notifications: NotificationItem[];
+  searchAction: (query: string) => Promise<SearchResultDto>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -132,6 +139,8 @@ export function AppShell({
           role={role}
           userName={userName}
           memberships={memberships}
+          notifications={notifications}
+          searchAction={searchAction}
           pilotageItems={pilotageItems}
           gestionItems={gestionItems}
           pathname={pathname}
@@ -142,17 +151,23 @@ export function AppShell({
         />
       </aside>
 
-      {/* --- Mobile topbar (below md): brand + hamburger opening the drawer --- */}
-      <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
-        <span className="truncate font-semibold">{structureName}</span>
-        <button
-          type="button"
-          aria-label={dict.nav.openMenu}
-          onClick={() => setDrawerOpen(true)}
-          className="flex h-touch w-touch items-center justify-center rounded-md hover:bg-accent"
-        >
-          <Menu className="h-5 w-5" aria-hidden="true" />
-        </button>
+      {/* --- Mobile topbar (below md): brand + search + notifications + hamburger --- */}
+      <header className="flex h-14 items-center justify-between gap-2 border-b border-border bg-card px-4 md:hidden">
+        <span className="shrink-0 truncate font-semibold">{structureName}</span>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
+          <div className="hidden min-w-0 flex-1 sm:block">
+            <GlobalSearch structureId={structureId} searchAction={searchAction} />
+          </div>
+          <NotificationsMenu structureId={structureId} items={notifications} />
+          <button
+            type="button"
+            aria-label={dict.nav.openMenu}
+            onClick={() => setDrawerOpen(true)}
+            className="flex h-touch w-touch items-center justify-center rounded-md hover:bg-accent"
+          >
+            <Menu className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       {/* --- Mobile drawer: full grouped menu + structure switcher + logout --- */}
@@ -182,6 +197,8 @@ export function AppShell({
               role={role}
               userName={userName}
               memberships={memberships}
+              notifications={notifications}
+              searchAction={searchAction}
               pilotageItems={pilotageItems}
               gestionItems={gestionItems}
               pathname={pathname}
@@ -283,6 +300,8 @@ function SidebarContent({
   role,
   userName,
   memberships,
+  notifications,
+  searchAction,
   pilotageItems,
   gestionItems,
   pathname,
@@ -297,6 +316,8 @@ function SidebarContent({
   role: string;
   userName: string;
   memberships: ShellMembership[];
+  notifications: NotificationItem[];
+  searchAction: (query: string) => Promise<SearchResultDto>;
   pilotageItems: NavItemDef[];
   gestionItems: NavItemDef[];
   pathname: string | null;
@@ -316,6 +337,13 @@ function SidebarContent({
           <span className="truncate font-semibold">Gestion commerciale</span>
         </div>
       )}
+
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <GlobalSearch structureId={structureId} searchAction={searchAction} />
+        </div>
+        <NotificationsMenu structureId={structureId} items={notifications} />
+      </div>
 
       {/* Structure switcher -- multi-tenant: the active structure is shown
           AND switchable here, replacing the need to go back to /s for

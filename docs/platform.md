@@ -233,6 +233,61 @@ local-timezone conversion anywhere in this module. Revisit this file
 specifically if this product ever serves a market at a different UTC
 offset.
 
+## Analytics (Phase 2): treasury, reports, global search, notifications
+
+`analytics` grew four more pieces on top of `getDashboard`/`getHeadline`,
+all read-only and all going through the SAME documented cross-schema
+exception (direct indexed queries, no materialized view):
+
+- `getTreasury` -- consolidated money view (cash sales, receivable
+  collections, receivables owed to us, payments made to/debt owed by
+  suppliers). "Cash sale" vs "receivable collected" is NOT a stored flag --
+  it's derived from `payments.received_at = sales.confirmed_at` (at-sale
+  payment) vs `>` (collected later) -- see analytics/application/ports.ts's
+  comment on `getCashSalesTotal`/`getReceivableCollectionsTotal`. The
+  supplier side is NEVER fetched for a store-scoped actor (consolidated at
+  tenant level, db/README entry 2y) -- `supplier` stays `null`, same
+  "don't fetch what the actor may not see" discipline as
+  `dashboard:read_financials`. New permission: `treasury:read`
+  (owner/manager/accountant/auditor).
+- `getReports` -- revenue by store + top products for a chosen period,
+  same direct-indexed-query discipline, gated on the EXISTING
+  `dashboard:read_financials` (no new permission -- nothing here a
+  dashboard viewer couldn't already see). CSV export via
+  `exportReportsCsv`, gated on `report:export`, audited.
+- `globalSearch` -- ONE Server Action, ONE round trip, five sections
+  (products/customers/suppliers via pg_trgm's `%` operator against the
+  GIN indexes from migration 0016; sales/transfers via a plain prefix
+  match on `ticket_number`/`reference`), each `LIMIT 5`, each filtered by
+  permission AND store AT THE QUERY -- an actor without `supplier:read`
+  never issues that query at all. Wired into the app shell's topbar
+  (Ctrl/Cmd+K), `src/components/nav/global-search.tsx`.
+- `getNotifications` -- **derived, never persisted.** No table, no worker,
+  no cron. Reuses the exact same sources the dashboard/receivables/
+  transfers/rebates use cases already compute (`inventoryService.
+  listLowStock`, `billingService.getReceivablesByCustomer`,
+  `stockTransfersService.listTransfers`, `rebatesService.
+  listRecentGrants`), filtered by the permission that makes each alert
+  ACTIONABLE for that role (e.g. the receivable section requires BOTH
+  `customer:read` AND `payment:record`, not just the former -- a role
+  that can read but never collect a payment doesn't get the alert).
+  Computed once per structure-layout render (`src/app/s/[structureId]/
+  layout.tsx`) and passed down as a plain prop to
+  `src/components/nav/notifications-menu.tsx` -- no client-side
+  fetch-on-mount.
+
+  **Why not a table, for the next person who reaches for one:** a
+  persisted notifications table would need either a worker (Celery/RQ-
+  style) or a Supabase Edge Function + `pg_cron` to populate/expire rows,
+  which is backlog and stale-row risk for a feature that pushes nothing
+  off-app today (CLAUDE.md D5's `NotificationSender` isn't wired yet).
+  **The day D5 lands** (WhatsApp/SMS via `NotificationSender`), the right
+  move is **Vercel Cron** calling an **idempotent** job (dedupe key per
+  alert instance, e.g. `low_stock:{productId}:{warehouseId}:{date}`) that
+  reads the SAME derivation this module already has and dispatches
+  through the port -- not a new "notifications" table serving double duty
+  as both the in-app badge's source of truth and the outbound queue.
+
 ## Known gaps / deliberate deferrals (for whoever builds the next module)
 
 - No structure/tenant **creation** flow is built yet (the README's bootstrap

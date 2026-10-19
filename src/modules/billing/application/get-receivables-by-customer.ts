@@ -38,15 +38,18 @@ export async function getReceivablesByCustomer(
 
   const invoicedSaleIds = new Set(saleIdsWithInvoice);
   const now = new Date();
-  const byCustomer = new Map<string, { outstandingMinor: bigint; overdueMinor: bigint }>();
+  const DUE_SOON_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+  const dueSoonThreshold = new Date(now.getTime() + DUE_SOON_WINDOW_MS);
+  const byCustomer = new Map<string, { outstandingMinor: bigint; overdueMinor: bigint; dueSoonMinor: bigint }>();
 
-  const bump = (customerId: string | null, amount: bigint, overdue: bigint) => {
+  const bump = (customerId: string | null, amount: bigint, overdue: bigint, dueSoon: bigint) => {
     if (!customerId || amount <= 0n) {
       return;
     }
-    const entry = byCustomer.get(customerId) ?? { outstandingMinor: 0n, overdueMinor: 0n };
+    const entry = byCustomer.get(customerId) ?? { outstandingMinor: 0n, overdueMinor: 0n, dueSoonMinor: 0n };
     entry.outstandingMinor += amount;
     entry.overdueMinor += overdue;
+    entry.dueSoonMinor += dueSoon;
     byCustomer.set(customerId, entry);
   };
 
@@ -58,9 +61,9 @@ export async function getReceivablesByCustomer(
       continue;
     }
     const balance = moneyFromDto(sale.totalMinor) - moneyFromDto(sale.paidMinor);
-    // A confirmed sale with no due date is never "overdue" by itself --
-    // only invoices carry a due_at.
-    bump(sale.customerId, balance, 0n);
+    // A confirmed sale with no due date is never "overdue"/"due soon" by
+    // itself -- only invoices carry a due_at.
+    bump(sale.customerId, balance, 0n, 0n);
   }
 
   let invoiceWarehouseBySaleId: Record<string, string> = {};
@@ -78,12 +81,14 @@ export async function getReceivablesByCustomer(
     }
     const balance = invoice.totalMinor - invoice.paidMinor;
     const overdue = invoice.dueAt && invoice.dueAt < now ? balance : 0n;
-    bump(invoice.customerId, balance, overdue);
+    const dueSoon = invoice.dueAt && invoice.dueAt >= now && invoice.dueAt <= dueSoonThreshold ? balance : 0n;
+    bump(invoice.customerId, balance, overdue, dueSoon);
   }
 
   return Array.from(byCustomer.entries()).map(([customerId, totals]) => ({
     customerId,
     outstandingMinor: moneyToDto(totals.outstandingMinor),
     overdueMinor: moneyToDto(totals.overdueMinor),
+    dueSoonMinor: moneyToDto(totals.dueSoonMinor),
   }));
 }

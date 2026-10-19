@@ -3,6 +3,7 @@ export { recordSupplierPayment, type RecordSupplierPaymentRepos } from "./record
 export { voidSupplierPayment } from "./void-supplier-payment";
 export { listDeliveries } from "./list-deliveries";
 export { getSupplierDebt } from "./get-supplier-debt";
+export { getTotalSupplierDebt } from "./get-total-supplier-debt";
 export type {
   DeliveryRepository,
   DeliveryRecord,
@@ -21,4 +22,5 @@ export type {
   SupplierPaymentDto,
   SupplierPaymentMethod,
   SupplierDebtDto,
+  SupplierDebtTotalDto,
 } from "./dto";

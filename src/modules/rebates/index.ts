@@ -28,6 +28,8 @@ export const rebatesService = {
     useCases.getSupplierRebateProgress(ctx, supplierId, rebateRepository),
   listRebateGrants: (ctx: TenantSessionContext, scaleId: string) =>
     useCases.listRebateGrants(ctx, scaleId, rebateRepository),
+  listRecentGrants: (ctx: TenantSessionContext, sinceExclusive: Date) =>
+    useCases.listRecentGrants(ctx, sinceExclusive, rebateRepository),
 };
 
 export type {

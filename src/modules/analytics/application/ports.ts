@@ -142,4 +142,44 @@ export interface AnalyticsRepository {
     window: WindowArgs,
     storeScope: string | null
   ): Promise<OwnSalesSummary>;
+
+  // --- Trésorerie (treasury) ---
+  //
+  // "Cash sale" vs "receivable collected" is NOT a stored flag -- both
+  // kinds of customer payment land in the SAME `payments` row shape
+  // (confirmSale's at-sale-time payment and the standalone recordPayment
+  // use case share the table). The distinguishing signal is the one
+  // structural fact that is always true: a payment collected AT
+  // confirmation time is inserted with `received_at` set to the EXACT
+  // SAME app-clock value as the sale's own `confirmed_at` (see
+  // confirm-sale.ts, `receivedAt: confirmedAt`); any payment recorded
+  // LATER (recordPayment, paying down a receivable) is necessarily
+  // stamped strictly after that moment. This is a documented judgment
+  // call, not a schema guarantee -- flag for security-reviewer if a
+  // future payment path ever stamps `received_at` some other way.
+  getCashSalesTotal(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<bigint>;
+
+  getReceivableCollectionsTotal(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<bigint>;
+
+  // Tenant-level only (never store-scoped, D-aligned with purchasing's
+  // supplier-debt consolidation decision, db/README entry 2y) -- the
+  // caller (getTreasury) must only issue this for an UNSCOPED actor.
+  getSupplierPaymentsTotal(ctx: TenantSessionContext, window: WindowArgs): Promise<bigint>;
+
+  // Revenue broken down by store for the period -- "Rapports" screen.
+  // `storeScope` narrows to one store (gerant, or an owner's explicit
+  // selection); `null` returns one row per store in the tenant.
+  getRevenueByStore(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<Array<{ warehouseId: string; netMinor: bigint; netCount: number }>>;
 }

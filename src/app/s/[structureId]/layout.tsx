@@ -9,6 +9,8 @@ import { structures } from "@/db/schema/tenancy";
 import { NotAMemberError, UnauthenticatedError } from "@/platform/errors";
 import { AppShell } from "@/components/nav/app-shell";
 import { ALL_NAV_ITEMS, type NavKey } from "@/components/nav/nav-items";
+import { analyticsService } from "@/modules/analytics";
+import { searchAction } from "@/modules/analytics/api";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +49,18 @@ export default async function StructureLayout({
       (item) => !item.permissions || item.permissions.some((p) => can(actor, p))
     ).map((item) => item.key);
 
-    const structure = await withTenantSession(actor, async ({ db }) => {
-      const [row] = await db
+    const { structure, notifications } = await withTenantSession(actor, async (ctx) => {
+      const [row] = await ctx.db
         .select({ name: structures.name })
         .from(structures)
         .where(eq(structures.id, actor.structureId))
         .limit(1);
-      return row;
+      // Derived, not persisted (no table/worker/cron, see docs/platform.md)
+      // -- reuses the SAME sources the dashboard already computes. Best
+      // effort: a glitch computing notifications must never block the
+      // whole shell from rendering.
+      const notifications = await analyticsService.getNotifications(ctx).catch(() => []);
+      return { structure: row, notifications };
     });
     if (!structure) {
       notFound();
@@ -71,6 +78,8 @@ export default async function StructureLayout({
         allowedKeys={allowedKeys}
         canSell={canSell}
         memberships={memberships}
+        notifications={notifications}
+        searchAction={searchAction.bind(null, structureId)}
       >
         {children}
       </AppShell>

@@ -8,6 +8,7 @@ export {
 export { verifyRebateTier } from "./verify-rebate-tier";
 export { getCustomerRebateProgress, getSupplierRebateProgress } from "./get-rebate-progress";
 export { listRebateGrants } from "./list-rebate-grants";
+export { listRecentGrants } from "./list-recent-grants";
 export type {
   RebateRepository,
   RebateScaleRecord,

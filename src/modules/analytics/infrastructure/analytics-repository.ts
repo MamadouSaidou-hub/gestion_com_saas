@@ -238,4 +238,84 @@ export const analyticsRepository: AnalyticsRepository = {
     const row = rows[0];
     return { saleCount: toInt(row?.sale_count), totalMinor: toBigInt(row?.total_minor) };
   },
+
+  async getCashSalesTotal(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<bigint> {
+    const storeFilter = storeScope ? sql`and p.warehouse_id = ${storeScope}` : sql``;
+    const rows = await ctx.db.execute<{ total: unknown }>(sql`
+      select coalesce(sum(p.amount_minor), 0) as total
+      from payments p
+      join sales s on s.structure_id = p.structure_id and s.id = p.sale_id
+      where p.structure_id = ${ctx.actor.structureId}
+        and p.voided_at is null
+        and p.received_at >= ${window.start.toISOString()}
+        and p.received_at < ${window.end.toISOString()}
+        and p.received_at = s.confirmed_at
+        ${storeFilter}
+    `);
+    return toBigInt(rows[0]?.total);
+  },
+
+  async getReceivableCollectionsTotal(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<bigint> {
+    const storeFilter = storeScope ? sql`and p.warehouse_id = ${storeScope}` : sql``;
+    const rows = await ctx.db.execute<{ total: unknown }>(sql`
+      select coalesce(sum(p.amount_minor), 0) as total
+      from payments p
+      join sales s on s.structure_id = p.structure_id and s.id = p.sale_id
+      where p.structure_id = ${ctx.actor.structureId}
+        and p.voided_at is null
+        and p.received_at >= ${window.start.toISOString()}
+        and p.received_at < ${window.end.toISOString()}
+        and p.received_at > s.confirmed_at
+        ${storeFilter}
+    `);
+    return toBigInt(rows[0]?.total);
+  },
+
+  async getSupplierPaymentsTotal(ctx: TenantSessionContext, window: WindowArgs): Promise<bigint> {
+    // Tenant-level only -- supplier_payments has no warehouse_id column at
+    // all (db/README entry 2y), by product decision. Caller is responsible
+    // for only issuing this query for an unscoped actor.
+    const rows = await ctx.db.execute<{ total: unknown }>(sql`
+      select coalesce(sum(amount_minor), 0) as total
+      from supplier_payments
+      where structure_id = ${ctx.actor.structureId}
+        and voided_at is null
+        and paid_at >= ${window.start.toISOString()}
+        and paid_at < ${window.end.toISOString()}
+    `);
+    return toBigInt(rows[0]?.total);
+  },
+
+  async getRevenueByStore(
+    ctx: TenantSessionContext,
+    window: WindowArgs,
+    storeScope: string | null
+  ): Promise<Array<{ warehouseId: string; netMinor: bigint; netCount: number }>> {
+    const storeFilter = storeScope ? sql`and warehouse_id = ${storeScope}` : sql``;
+    const rows = await ctx.db.execute<{ warehouse_id: string; net_minor: unknown; net_count: unknown }>(sql`
+      select
+        warehouse_id,
+        coalesce(sum(total_minor) filter (where status = 'confirmed'), 0) as net_minor,
+        count(*) filter (where status = 'confirmed') as net_count
+      from sales
+      where structure_id = ${ctx.actor.structureId}
+        and confirmed_at >= ${window.start.toISOString()}
+        and confirmed_at < ${window.end.toISOString()}
+        ${storeFilter}
+      group by warehouse_id
+    `);
+    return rows.map((row) => ({
+      warehouseId: row.warehouse_id,
+      netMinor: toBigInt(row.net_minor),
+      netCount: toInt(row.net_count),
+    }));
+  },
 };

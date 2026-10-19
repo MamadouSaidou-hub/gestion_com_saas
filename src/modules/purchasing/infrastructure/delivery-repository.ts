@@ -200,6 +200,21 @@ export const deliveryRepository: DeliveryRepository = {
     return BigInt(row?.debt ?? "0");
   },
 
+  async sumTotalDebt(ctx: TenantSessionContext): Promise<bigint> {
+    const [row] = await ctx.db
+      .select({
+        debt: sql<string>`coalesce(sum(${supplierDeliveries.totalMinor} - ${supplierDeliveries.paidMinor}), 0)`,
+      })
+      .from(supplierDeliveries)
+      .where(
+        and(
+          eq(supplierDeliveries.structureId, ctx.actor.structureId),
+          isNull(supplierDeliveries.cancelledAt)
+        )
+      );
+    return BigInt(row?.debt ?? "0");
+  },
+
   async sumDeliveredQuantitySince(
     ctx: TenantSessionContext,
     supplierId: string,

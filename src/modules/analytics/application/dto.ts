@@ -90,3 +90,59 @@ export interface GetDashboardInput {
   // `resolveStoreScope`).
   warehouseId?: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Trésorerie (treasury) -- consolidated money view. `supplier` is `null`,
+// not a zeroed-out object, for a store-scoped actor (gerant) -- the
+// supplier side is consolidated at tenant level by product decision and is
+// simply never fetched for them (see get-treasury.ts). The key itself is
+// still always present so the DTO shape is stable for the client either
+// way; its VALUE being null is the signal, same convention as
+// `DashboardDto.financials` being entirely absent for a cashier.
+// ---------------------------------------------------------------------------
+export interface TreasurySupplierDto {
+  paymentsMadeMinor: MoneyMinorDto;
+  debtOwedMinor: MoneyMinorDto;
+}
+
+export interface TreasuryDto {
+  period: PeriodGranularity;
+  windowStart: string;
+  windowEnd: string;
+  cashSalesMinor: MoneyMinorDto;
+  receivableCollectionsMinor: MoneyMinorDto;
+  totalEncaisseMinor: MoneyMinorDto;
+  receivablesOwedToUsMinor: MoneyMinorDto;
+  supplier: TreasurySupplierDto | null;
+}
+
+export interface GetTreasuryInput {
+  period: PeriodGranularity;
+  referenceDate?: Date;
+  warehouseId?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Rapports (reports) -- revenue by store, top products, by period. Same
+// direct-indexed-query discipline as the dashboard (no materialized view).
+// ---------------------------------------------------------------------------
+export interface RevenueByStoreDto {
+  warehouseId: string;
+  netMinor: MoneyMinorDto;
+  saleCount: number;
+}
+
+export interface ReportsDto {
+  period: PeriodGranularity;
+  windowStart: string;
+  windowEnd: string;
+  revenueByStore: RevenueByStoreDto[];
+  topProductsByRevenue: TopProductDto[];
+  topProductsByQuantity: TopProductDto[];
+}
+
+export interface GetReportsInput {
+  period: PeriodGranularity;
+  referenceDate?: Date;
+  warehouseId?: string | null;
+}
